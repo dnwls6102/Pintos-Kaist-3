@@ -58,7 +58,7 @@ struct intr_frame {
 	uint32_t __pad6;
 	uint64_t eflags;
 	uintptr_t rsp;
-	uint16_t ss;
+	uint16_t ss; //rsp를 위한 데이터 세그먼트
 	uint16_t __pad7;
 	uint32_t __pad8;
 } __attribute__((packed));

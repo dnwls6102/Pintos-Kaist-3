@@ -184,6 +184,8 @@ process_exec (void *f_name) {
 	if (!success)
 		return -1;
 
+	/*Project 2 : Command Line Parsing*/	
+
 	/* Start switched process. */
 	do_iret (&_if);
 	NOT_REACHED ();

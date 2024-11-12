@@ -195,6 +195,8 @@ thread_create (const char *name, int priority,
 		thread_func *function, void *aux) {
 	struct thread *t;
 	tid_t tid;
+	//커널 스택 할당을 위한 kernel_threads_frame
+	//struct kernel_thread_frame *kf;
 
 	ASSERT (function != NULL);
 
