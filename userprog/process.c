@@ -158,6 +158,11 @@ error:
 	thread_exit ();
 }
 
+void argument_stack(char* argv[], int argc, struct intr_frame* _if)
+{
+
+}
+
 /* Switch the current execution context to the f_name.
  * Returns -1 on fail. */
 int
@@ -176,15 +181,36 @@ process_exec (void *f_name) {
 	/* We first kill the current context */
 	process_cleanup ();
 
+	char *temp, *save_ptr; //argv에 저장할 문자열 temp, strtok_r 함수를 사용하는 데에 필요한 문자열 save_ptr
+	char* argv[64]; //커맨드라인 받아낼 array argv
+	int argc = 0;
+
+	/*Project 2 : Command Line Parsing*/
+
+	/*strtok_r(char *str, const char *delim, char **saveptr)함수
+	str : 분할할 원본 문자열의 시작 주소. 첫 번째 호출에서 원본 문자열을 지정하고, 이후 호출에서는 NULL을 전달해 다음 토큰을 가져옴
+	delim : 문자열을 구분지을 구분자 문자열
+	saveptr : 문자열의 현재 위치를 저장할 포인터. 함수가 한 번 호출되면 saveptr에 마지막으로 문자열을 나눈 위치가 기록됨
+	*/
+
+	//argv에 커맨드 저장
+	//예: echo x y z라는 커맨드가 들어왔다면
+	//argv[0]에 echo, argv[1]에 x, argv[2]에 y, argv[3]에 z가 들어감
+	for (temp = strtok_r(file_name, " ", &save_ptr); temp != NULL; temp = strtok_r(NULL, " ", &save_ptr))
+	{
+		argv[argc++] = temp; 
+	}
+
 	/* And then load the binary */
 	success = load (file_name, &_if);
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
-	if (!success)
-		return -1;
+	if (!success) //프로세스 생성에 성공하지 못하면
+		thread_exit(); //스레드 삭제
 
 	/*Project 2 : Command Line Parsing*/	
+	argument_stack(argv, argc, &_if);
 
 	/* Start switched process. */
 	do_iret (&_if);

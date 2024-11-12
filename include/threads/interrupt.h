@@ -52,12 +52,12 @@ struct intr_frame {
 	uint64_t error_code;
 /* Pushed by the CPU.
    These are the interrupted task's saved registers. */
-	uintptr_t rip;
-	uint16_t cs;
+	uintptr_t rip; //실행할 다음 명령어
+	uint16_t cs; //rip를 위한 코드 세그먼트
 	uint16_t __pad5;
 	uint32_t __pad6;
-	uint64_t eflags;
-	uintptr_t rsp;
+	uint64_t eflags; //CPU 플래그 저장
+	uintptr_t rsp; //스택 포인터
 	uint16_t ss; //rsp를 위한 데이터 세그먼트
 	uint16_t __pad7;
 	uint32_t __pad8;
