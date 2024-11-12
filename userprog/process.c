@@ -160,7 +160,66 @@ error:
 
 void argument_stack(char* argv[], int argc, struct intr_frame* _if)
 {
-	
+	char *argv_addr[100]; //명령어가 스택에 저장된 주소를 저장하는 배열 argv_addr
+	int argv_len; //명령어의 길이를 저장하는 argv_len(주소값 연산을 위함)
+
+	//입력받은 명령어를 stack에 push하는데, 오른쪽에서 왼쪽으로 push한다
+	//4바이트 alignment를 위해 필요할 경우 padding을 넣어준다 (64비트니까 8바이트 alignment?)
+	//문자열의 시작 주소를 push해준다
+	//그 후 argv와 argc도 push해주고
+	//다음 명령어(여기서는 return adress)의 주소도 push해준다
+
+	//스택의 시작 주소 : setup_stack에서 초기화 함. _if -> rsp에 저장되어 있음
+
+	//스택 초기화 첫 번째 작업 : argv에 저장된 명령어들을 스택에 넣어주기
+	//유저 스택의 top은 스택에서 가장 주소값이 큰 곳이 아니라, 가장 작은 곳
+	//위에서 아래로 자라는 구조이기 때문에, _if -> rsp에서 감산을 해줘야 함
+	for (int i = argc - 1; i >= 0; i--)
+	{
+		argv_len = strlen(argv[i] + 1); //+1까지 해주는 이유: null 문자의 길이까지 고려해야 하니까
+		_if -> rsp -= argv_len; //주소값 연산 해주기
+		memcpy(_if -> rsp, argv[i], argv_len); //_if -> rsp로 argv_len만큼 argv[i]의 내용을 옮기기 == 스택에 명령어 push
+		argv_addr[i] = _if -> rsp; //명령어가 저장된 주소(스택에서의 명령어 시작점)을 argv_addr[i]에 저장
+		//0번째가 아닌 i번째 인덱스에 저장하는 이유 : 어차피 나중에 주소도 스택에 넣을텐데, 이 때 i번째부터 넣으면 됨
+	}
+
+	//8비트 allignment를 위한 while 반복문
+	while (_if -> rsp % 8 != 0)
+	{
+		_if -> rsp -= 1; //스택 포인터가 가리키는 주소가 8로 나누어 떨어질때까지 반복해줘야 함
+		*(uint8_t *)(_if -> rsp) = 0; //스택 포인터가 현재 가리키고 있는 주소에 내장된 값을 0으로 함
+	}
+
+	//스택 초기화의 두 번째 작업 : 스택에 저장된 명령어들의 (스택에 저장된)주소를 스택에 push하기
+
+	//명령어가 더 이상 없다는 것을 나타내기 위해 스택의 현재 위치에서 8바이트만큼 더한 위치에(8바이트 alignment를 위함. 4바이트면 4바이트만큼)
+	//sizeof(char*)만큼 0으로 채워준다
+	//사실상 argv[4] = 0 이라는 의미
+
+	_if -> rsp -= 8;
+	memset(_if -> rsp, 0, sizeof(char *));
+
+	//나머지 명령어들이 저장된 주소를 stack에 push
+	for (int i = argc - 1; i >= 0; i--)
+	{
+		_if -> rsp -= 8; //8바이트 alignment 지켜주기
+		memcpy(_if -> rsp, &argv_addr[i], sizeof(char *)); //sizeof(char *)만큼의 공간에 주소값 저장하기
+	}
+
+	//이후 argv와 argc를 차례대로 push
+	char *argv_start = _if -> rsp;
+	_if -> rsp -= 8;
+	memset(_if -> rsp, argv_start, sizeof(char *));
+	_if -> rsp -= 8;
+	memset(_if -> rsp, argc, sizeof(int));
+
+	//fake return address인 0을 push
+	_if -> rsp -= 8;
+	memset(_if -> rsp, 0, sizeof(void *));
+
+	_if -> R.rsi = argv_start; //%rsi가 argv의 주소를 가리키게 함
+	// _if -> R.rsi = _if -> rsp + 8;
+	_if -> R.rdi = argc; //%rdi를 argc로 설정
 }
 
 /* Switch the current execution context to the f_name.
@@ -204,13 +263,21 @@ process_exec (void *f_name) {
 	/* And then load the binary */
 	success = load (file_name, &_if);
 
-	/* If load failed, quit. */
-	palloc_free_page (file_name);
 	if (!success) //프로세스 생성에 성공하지 못하면
-		thread_exit(); //스레드 삭제
+	{
+		/* If load failed, quit. */
+		palloc_free_page (file_name);
+		return -1; //스레드 삭제
+	}
+		
 
+	printf("TEST\n");
 	/*Project 2 : Command Line Parsing*/	
 	argument_stack(argv, argc, &_if);
+	//디버깅용
+	hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
+
+	palloc_free_page (file_name);
 
 	/* Start switched process. */
 	do_iret (&_if);
@@ -232,6 +299,7 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
+	thread_sleep(100);
 	return -1;
 }
 

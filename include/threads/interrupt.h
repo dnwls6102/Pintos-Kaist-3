@@ -37,7 +37,7 @@ struct gp_registers {
 struct intr_frame {
 	/* Pushed by intr_entry in intr-stubs.S.
 	   These are the interrupted task's saved registers. */
-	struct gp_registers R;
+	struct gp_registers R; //인터럽트 스택의 레지스터 R
 	uint16_t es;
 	uint16_t __pad1;
 	uint32_t __pad2;
