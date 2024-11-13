@@ -42,16 +42,23 @@ void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
 	printf ("system call!\n");
-	switch(*(uint64_t*)(f -> rsp))
+	//Linux에서 시스템 콜의 번호는 rax에 저장됨
+	uint64_t number = f -> R.rax;
+	//나머지 인자의 레지스터 순서 : %rdi, %rsi, %rdx, %rcx, %r8, %r9
+	//참고 : https://rninche01.tistory.com/entry/Linux-system-call-table-%EC%A0%95%EB%A6%ACx86-x64
+	switch(number)
 	{
 		case SYS_HALT:
 			halt();
 		case SYS_EXIT:
-			exit();
+			exit(f -> R.rdi);
 		case SYS_EXEC:
 			exec();
 		case SYS_WAIT:
 			wait();
+		default:
+			exit(-1);
 	}
+
 	thread_exit ();
 }
