@@ -209,6 +209,10 @@ thread_create (const char *name, int priority,
 	init_thread (t, name, priority);
 	tid = t->tid = allocate_tid ();
 
+	#ifdef USERPROG
+	list_push_back(&thread_current() -> child_list, &t -> child_elem); //현재 프로세스(스레드)의 child_list에 생성할 프로세스(스레드) 삽입
+	#endif
+
 	/* Call the kernel_thread if it scheduled.
 	 * Note) rdi is 1st argument, and rsi is 2nd argument. */
 	t->tf.rip = (uintptr_t) kernel_thread;
@@ -454,6 +458,14 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->recent_cpu = RECENT_CPU_DEFAULT;
 
 	list_push_back (&all_list, &t->all_elem);
+
+	#ifdef USERPROG
+	//t -> is_initd = false; //일단 false로 설정 후, process_create_initd에서 따로 설정
+	list_init(&t -> child_list); //이 프로세스(스레드)의 자식 프로세스(스레드)가 담길 child_list 초기화
+	//t -> parent = thread_current(); //생성할 프로세스(스레드)의 부모를 현재 프로세스(스레드)로 설정
+	// list_push_back(&thread_current() -> child_list, &t -> child_elem); //현재 프로세스(스레드)의 child_list에 생성할 프로세스(스레드) 삽입
+	// => init_thread에서 list_push_back하면 thread_current() 오류 <- 왜?
+	#endif
 
 	list_init(&t->donations);
 }

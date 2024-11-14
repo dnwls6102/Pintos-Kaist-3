@@ -116,6 +116,16 @@ struct thread {
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
+
+	/*Process Hierachy 구현을 위한 멤버*/
+	struct thread* parent; //현재 프로세스의 부모 프로세스
+	struct list child_list; //현재 스레드의 자식 프로세스들이 들어있는 리스트
+	struct list_elem child_elem; //child_list에 들어갈 list_elem
+
+	//struct semaphore fork_sema; //자식(복제) 프로세스를 생성했을 시 현재 프로세스는 wait, 복제된 프로세스가 돌아가야 함
+
+	bool is_initd; //이 스레드(프로세스)가 init 프로세스인지를 알려주는 bool 멤버
+
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
