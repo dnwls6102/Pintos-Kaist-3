@@ -64,6 +64,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			//int wait(pid_t)
 			f -> R.rax = wait(f -> R.rdi);
 			break;
+		case SYS_FORK:
+			//pid_t fork(const char *thread_name)
+			f -> R.rax = fork(f -> R.rdi);
 		default:
 			exit(-1);
 	}
@@ -96,7 +99,7 @@ void halt(void)
 void exit(int status)
 {
 	//프로세스 이름 : exit(status)가 출력되어야 함
-	printf("%s: exit(%d)\n", thread_current() -> name, status);
+	printf("%s: exit(%d)\n", thread_current() -> name, thread_current() -> status);
 
 	thread_exit();
 }
@@ -111,4 +114,12 @@ int exec(const char *cmd_line)
 int wait(int pid_t)
 {
 
+}
+
+//pid_t fork(const char *thread_name)
+int fork(const char *thread_name)
+{
+	check_address(thread_name);
+
+	return process_fork(thread_current(), NULL);
 }
