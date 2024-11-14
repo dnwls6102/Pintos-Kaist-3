@@ -46,16 +46,24 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	uint64_t number = f -> R.rax;
 	//나머지 인자의 레지스터 순서 : %rdi, %rsi, %rdx, %rcx, %r8, %r9
 	//참고 : https://rninche01.tistory.com/entry/Linux-system-call-table-%EC%A0%95%EB%A6%ACx86-x64
+	//리턴값이 있는 시스템 콜의 경우, 리턴 값을 %rax(32비트면 %eax)에 저장해야 한다
 	switch(number)
 	{
 		case SYS_HALT:
 			halt();
+			break;
 		case SYS_EXIT:
+			//void exit(int status)
 			exit(f -> R.rdi);
+			break;
 		case SYS_EXEC:
-			exec();
+			//int exec(const char *file)
+			f -> R.rax = exec(f -> R.rdi);
+			break;
 		case SYS_WAIT:
-			wait();
+			//int wait(pid_t)
+			f -> R.rax = wait(f -> R.rdi);
+			break;
 		default:
 			exit(-1);
 	}
@@ -76,4 +84,31 @@ void check_address(void * address)
 		//실행 종료
 		exit(-1);
 	}
+}
+
+//void halt(void) NO_RETURN
+void halt(void)
+{
+	power_off();
+}
+
+//void exit(int status) NO_RETURN
+void exit(int status)
+{
+	//프로세스 이름 : exit(status)가 출력되어야 함
+	printf("%s: exit(%d)\n", thread_current() -> name, status);
+
+	thread_exit();
+}
+
+//int exec(const char *cmd_line)
+int exec(const char *cmd_line)
+{
+
+}
+
+//int wait(pid_t)
+int wait(int pid_t)
+{
+
 }
