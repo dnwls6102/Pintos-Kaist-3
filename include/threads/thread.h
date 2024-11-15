@@ -35,6 +35,10 @@ typedef int tid_t;
 #define RECENT_CPU_DEFAULT 0
 #define LOAD_AVG_DEFAULT 0
 
+/* System call */
+#define FDT_PAGES 3
+#define FDCOUNT_LIMIT FDT_PAGES * (1 << 9) //1 << 9 = 2^9 = 512 = 4kb / 8byte
+
 /* A kernel thread or user process.
  *
  * Each thread structure is stored in its own 4 kB page.  The
@@ -125,7 +129,14 @@ struct thread {
 	//자식(복제) 프로세스를 생성할 때, 생성하는 프로세스(=부모 프로세스)의 인터럽트 프레임 정보를 담아낼 멤버 parent_if
 	struct intr_frame parent_if; 
 
-	struct semaphore fork_sema; //자식(복제) 프로세스를 생성했을 시 현재 프로세스는 wait, 복제된 프로세스가 돌아가야 함
+	int fd_idx;
+	struct file **fdt;
+	struct file *running_file;
+
+	//자식(복제) 프로세스를 생성했을 시 현재 프로세스는 wait, 복제된 프로세스가 돌아가야 함
+	struct semaphore fork_sema;
+	//자식 프로세스일 경우, 부모 프로세스에게 보내는 종료 시그널
+	struct semaphore exit_sema;
 
 	bool is_initd; //이 스레드(프로세스)가 init 프로세스인지를 알려주는 bool 멤버
 

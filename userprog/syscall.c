@@ -140,8 +140,10 @@ int wait(int pid_t)
 
 //pid_t fork(const char *thread_name)
 int fork(const char *thread_name)
-{
+{	
+	//fork를 요청한 스레드가 유효한 스레드인지 확인
 	check_address(thread_name);
 
+	//process_fork 호출(자식의 pid return)
 	return process_fork(thread_current(), NULL);
 }

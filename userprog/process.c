@@ -128,15 +128,19 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 
 	/* 3. TODO: Allocate new PAL_USER page for the child and set result to
 	 *    TODO: NEWPAGE. */
-
+	newpage = palloc_get_page(PAL_ZERO);
+	if (newpage == NULL)
+		return false;
 	/* 4. TODO: Duplicate parent's page to the new page and
 	 *    TODO: check whether parent's page is writable or not (set WRITABLE
 	 *    TODO: according to the result). */
-
+	memcpy(newpage, parent_page, PGSIZE);
+	writable = is_writable(pte);
 	/* 5. Add new page to child's page table at address VA with WRITABLE
 	 *    permission. */
 	if (!pml4_set_page (current->pml4, va, newpage, writable)) {
 		/* 6. TODO: if fail to insert page, do error handling. */
+		return false;
 	}
 	return true;
 }
@@ -179,6 +183,23 @@ __do_fork (void *aux) {
 	 * TODO:       in include/filesys/file.h. Note that parent should not return
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
+	if (parent -> fd_idx -> FDCOUNT_LIMIT)
+		goto error;
+	
+	current -> fd_idx = parent -> fd_idx;
+	struct file *file;
+	for (int fd = 0; fd < FDCOUNT_LIMIT; fd++)
+	{
+		file = parent -> fdt[fd];
+		if (file == NULL)
+			continue;
+		
+		if (file > STDERR)
+			current -> fdt[fd] = file_duplicate(file);
+		else
+			current -> fdt[fd] = file;
+	}
+
 
 	process_init ();
 
