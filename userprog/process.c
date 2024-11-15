@@ -26,6 +26,7 @@ static void process_cleanup (void);
 static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
 static void __do_fork (void *);
+struct thread * get_child_process(int tid);
 
 /* General process initializer for initd and other process. */
 static void
@@ -81,8 +82,28 @@ initd (void *f_name) {
 tid_t
 process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	/* Clone current thread to new thread.*/
-	return thread_create (name,
-			PRI_DEFAULT, __do_fork, thread_current ());
+	//현재 스레드 정보 불러오기
+	struct thread* current_t = thread_current();
+	//깃북에서 요구한 대로 레지스터 정보들을 다 옮기기 위해서는
+	//생성하는 스레드(부모 스레드)의 인터럽트 프레임을 전달해야 함
+	//rsp()함수를 통해 인터럽트 프레임의 시작 주소를 가져오기
+	//레지스터 정보는 페이지의 맨 위에 저장되에 있다
+	struct intr_frame* f = pg_round_up(rrsp()) - sizeof(struct intr_frame *);
+	memcpy(&current_t -> parent_if, f, sizeof(struct intr_frame *));
+
+	/*프로세스를 복제하고, 만약 실패하면 그대로 return*/
+	int tid;
+	tid = thread_create (name, PRI_DEFAULT, __do_fork, current_t);
+	if (tid == TID_ERROR)
+		return tid;
+
+	struct thread * child = get_child_process(tid);
+
+	//sema_down을 해줘서 자식 스레드가 do_fork를 완벽하게 하는 것을 보장
+	sema_down(&child -> fork_sema);
+	
+
+	return tid;
 }
 
 #ifndef VM
@@ -97,9 +118,13 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	bool writable;
 
 	/* 1. TODO: If the parent_page is kernel page, then return immediately. */
-
+	if (is_kernel_vaddr(va))
+		return true;
 	/* 2. Resolve VA from the parent's page map level 4. */
 	parent_page = pml4_get_page (parent->pml4, va);
+	//만약 메모리 할당을 못받은거면 return
+	if (parent_page == NULL)
+		return false;
 
 	/* 3. TODO: Allocate new PAL_USER page for the child and set result to
 	 *    TODO: NEWPAGE. */
@@ -127,11 +152,12 @@ __do_fork (void *aux) {
 	struct thread *parent = (struct thread *) aux;
 	struct thread *current = thread_current ();
 	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-	struct intr_frame *parent_if;
+	struct intr_frame *parent_if = &parent -> parent_if;
 	bool succ = true;
 
 	/* 1. Read the cpu context to local stack. */
 	memcpy (&if_, parent_if, sizeof (struct intr_frame));
+	if_.R.rax = 0; //자식 프로세스의 리턴값을 0으로 설정
 
 	/* 2. Duplicate PT */
 	current->pml4 = pml4_create();
@@ -156,10 +182,14 @@ __do_fork (void *aux) {
 
 	process_init ();
 
+	//성공적으로 복제 완료하면 sema 풀어주기
+	sema_up(&current -> fork_sema);
+
 	/* Finally, switch to the newly created process. */
 	if (succ)
 		do_iret (&if_);
 error:
+	sema_up(&current -> fork_sema);
 	thread_exit ();
 }
 
@@ -738,3 +768,24 @@ setup_stack (struct intr_frame *if_) {
 	return success;
 }
 #endif /* VM */
+
+//tid를 통해서 현재 스레드의 자식 스레드 구조체를 받아오는 함수
+struct thread *
+get_child_process(int tid)
+{
+	struct thread* current_t = thread_current();
+	struct thread* temp;
+
+	//현재 스레드의 child_list 순회
+	for (struct list_elem* t = list_begin(&current_t -> child_list); t != list_end(&current_t -> child_list); t = list_next(t))
+	{	
+		//list_elem에서 thread 구조체 복원
+		temp = list_entry(t, struct thread, child_elem);
+
+		//만약 temp의 tid가 매개변수 tid과 같다면
+		if (temp -> tid == tid)
+			return temp;
+	}
+	//일치하는 tid가 없다면
+	return NULL;
+}

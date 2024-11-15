@@ -465,6 +465,8 @@ init_thread (struct thread *t, const char *name, int priority) {
 	//t -> parent = thread_current(); //생성할 프로세스(스레드)의 부모를 현재 프로세스(스레드)로 설정
 	// list_push_back(&thread_current() -> child_list, &t -> child_elem); //현재 프로세스(스레드)의 child_list에 생성할 프로세스(스레드) 삽입
 	// => init_thread에서 list_push_back하면 thread_current() 오류 <- 왜?
+	//fork할 때 필요한 sema 초기화
+	sema_init(&t->fork_sema, 0);
 	#endif
 
 	list_init(&t->donations);

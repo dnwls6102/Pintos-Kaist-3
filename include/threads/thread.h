@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+#include "synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -121,8 +122,10 @@ struct thread {
 	struct thread* parent; //현재 프로세스의 부모 프로세스
 	struct list child_list; //현재 스레드의 자식 프로세스들이 들어있는 리스트
 	struct list_elem child_elem; //child_list에 들어갈 list_elem
+	//자식(복제) 프로세스를 생성할 때, 생성하는 프로세스(=부모 프로세스)의 인터럽트 프레임 정보를 담아낼 멤버 parent_if
+	struct intr_frame parent_if; 
 
-	//struct semaphore fork_sema; //자식(복제) 프로세스를 생성했을 시 현재 프로세스는 wait, 복제된 프로세스가 돌아가야 함
+	struct semaphore fork_sema; //자식(복제) 프로세스를 생성했을 시 현재 프로세스는 wait, 복제된 프로세스가 돌아가야 함
 
 	bool is_initd; //이 스레드(프로세스)가 init 프로세스인지를 알려주는 bool 멤버
 
