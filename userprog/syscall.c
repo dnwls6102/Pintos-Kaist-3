@@ -44,7 +44,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	printf ("system call!\n");
 	//Linux에서 시스템 콜의 번호는 rax에 저장됨
 	uint64_t number = f -> R.rax;
-	//나머지 인자의 레지스터 순서 : %rdi, %rsi, %rdx, %rcx, %r8, %r9
+	//나머지 인자의 레지스터 순서 : %rdi, %rsi, %rdx, %r10, %r8, %r9
 	//참고 : https://rninche01.tistory.com/entry/Linux-system-call-table-%EC%A0%95%EB%A6%ACx86-x64
 	//리턴값이 있는 시스템 콜의 경우, 리턴 값을 %rax(32비트면 %eax)에 저장해야 한다
 	switch(number)
@@ -107,7 +107,29 @@ void exit(int status)
 //int exec(const char *cmd_line)
 int exec(const char *cmd_line)
 {
+	//만약 cmd_line이 유효하지 않다면
+	if (cmd_line == NULL)
+		exit(-1);
+	
+	//원본 cmd_line의 복사본을 담을 char 포인터 변수 temp_str
+	//process_exec을 호출해 커맨드 라인을 파싱하는 과정을 거쳐야 하는데
+	//cmd_line은 const char이기 때문에 수정이 불가능함
+	char * temp_str;
+	//palloc_get_page로 메모리 공간 할당 받기(할당할 공간이 없으면 NULL 반환)
+	//메모리 공간 할당을 palloc으로 받는 이유
+	//커널 공간에서 메모리 공간을 정렬하고 보호하기 위함
+	temp_str = palloc_get_page(0);
+	//palloc으로 페이지 공간을 할당하지 못하면 exit하기
+	if (temp_str == NULL)
+		exit(-1);
+	//cmd_line의 내용을 temp_str로 PGSIZE(페이지 크기)만큼 복사
+	//strcpy를 안쓰고 strlcpy를 쓰는 이유 : string.h에 쓰지 말라고 선언되어 있음
+	strlcpy(cmd_line, temp_str, PGSIZE);
 
+	//process_exec을 실행에 실패하면 exit
+	if(process_exec(temp_str) == -1)
+		exit(-1);
+	
 }
 
 //int wait(pid_t)
