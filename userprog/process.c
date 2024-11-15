@@ -183,12 +183,15 @@ __do_fork (void *aux) {
 	 * TODO:       in include/filesys/file.h. Note that parent should not return
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
-	if (parent -> fd_idx -> FDCOUNT_LIMIT)
+	//주석 작성 필요
+	//FDT_COUNT_LIMIT
+	if (parent -> fd_idx > FDT_COUNT_LIMIT)
 		goto error;
 	
 	current -> fd_idx = parent -> fd_idx;
 	struct file *file;
-	for (int fd = 0; fd < FDCOUNT_LIMIT; fd++)
+	//FDT_COUNT_LIMIT
+	for (int fd = 0; fd < 128; fd++)
 	{
 		file = parent -> fdt[fd];
 		if (file == NULL)
@@ -199,7 +202,6 @@ __do_fork (void *aux) {
 		else
 			current -> fdt[fd] = file;
 	}
-
 
 	process_init ();
 
@@ -355,8 +357,23 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	thread_sleep(100);
-	return -1;
+	//매개변수로 건네받은 tid를 가진 자식 프로세스 가져오기
+	struct thread* child_thread = get_child_process(child_tid);
+	//그런 자식 없다면 return
+	if (child_thread == NULL)
+		return -1;
+	
+	//자식 프로세스가 종료될 때(라기보단 종료 직전)까지 기다리기
+	sema_down(&child_thread -> wait_sema);
+
+	//종료된 것이 확인되면, 현재 프로세스의 child_list에서 종료된 자식 삭제
+	list_remove(&child_thread -> child_elem);
+
+	//자식 프로세스에게 진짜 종료되도 좋다는 시그널 보내기
+	sema_up(&child_thread -> exit_sema);
+
+	//자식 스레드의 상태 return
+	return child_thread -> status;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
@@ -368,7 +385,19 @@ process_exit (void) {
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
 
+	//주석 작성 필요
+	for (int fd = 0; fd < curr -> fd_idx ; fd++)
+		close(fd);
+	palloc_free_multiple(curr -> fdt, FDT_PAGES);
+
+	file_close(curr -> running_file);
+
 	process_cleanup ();
+
+	//종료 임박했다는 시그널을 부모에게 보내기
+	sema_up(&curr->wait_sema);
+	//종료되도 좋다는 시그널을 부모로부터 받기
+	sema_down(&curr -> exit_sema);
 }
 
 /* Free the current process's resources. */

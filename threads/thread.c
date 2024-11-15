@@ -210,6 +210,16 @@ thread_create (const char *name, int priority,
 	tid = t->tid = allocate_tid ();
 
 	#ifdef USERPROG
+	//주석 필요
+	t -> fdt = palloc_get_multiple(PAL_ZERO, FDT_PAGES);
+	if (t -> fdt == NULL)
+		return TID_ERROR;
+	
+	t -> fd_idx = 3;
+	t -> fdt[0] = STDIN;
+	t -> fdt[1] = STDOUT;
+	t -> fdt[2] = STDERR;
+
 	list_push_back(&thread_current() -> child_list, &t -> child_elem); //현재 프로세스(스레드)의 child_list에 생성할 프로세스(스레드) 삽입
 	#endif
 
@@ -467,6 +477,12 @@ init_thread (struct thread *t, const char *name, int priority) {
 	// => init_thread에서 list_push_back하면 thread_current() 오류 <- 왜?
 	//fork할 때 필요한 sema 초기화
 	sema_init(&t->fork_sema, 0);
+	//자신이 종료될 때까지 기다릴 때 (부모가)써야하는 세마포어
+	sema_init(&t -> wait_sema, 0);
+	//(부모로부터)이제 종료되도 좋다는 시그널을 받을 세마포어
+	sema_init(&t -> exit_sema, 0);
+
+	t -> running_file = NULL;
 	#endif
 
 	list_init(&t->donations);

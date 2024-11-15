@@ -133,9 +133,9 @@ int exec(const char *cmd_line)
 }
 
 //int wait(pid_t)
-int wait(int pid_t)
+int wait(int pid)
 {
-
+	return process_wait(pid);
 }
 
 //pid_t fork(const char *thread_name)
@@ -146,4 +146,9 @@ int fork(const char *thread_name)
 
 	//process_fork 호출(자식의 pid return)
 	return process_fork(thread_current(), NULL);
+}
+
+void close(int fd) {
+	//구현하기
+    return;
 }

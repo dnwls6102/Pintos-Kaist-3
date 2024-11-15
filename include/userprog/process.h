@@ -10,4 +10,8 @@ int process_wait (tid_t);
 void process_exit (void);
 void process_activate (struct thread *next);
 
+#define STDIN 0x1
+#define STDOUT 0x2
+#define STDERR 0x3
+
 #endif /* userprog/process.h */

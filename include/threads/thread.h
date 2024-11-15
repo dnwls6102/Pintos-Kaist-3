@@ -36,8 +36,8 @@ typedef int tid_t;
 #define LOAD_AVG_DEFAULT 0
 
 /* System call */
-#define FDT_PAGES 3
-#define FDCOUNT_LIMIT FDT_PAGES * (1 << 9) //1 << 9 = 2^9 = 512 = 4kb / 8byte
+#define FDT_COUNT_LIMIT 128
+#define FDT_PAGES 2
 
 /* A kernel thread or user process.
  *
@@ -135,7 +135,9 @@ struct thread {
 
 	//자식(복제) 프로세스를 생성했을 시 현재 프로세스는 wait, 복제된 프로세스가 돌아가야 함
 	struct semaphore fork_sema;
-	//자식 프로세스일 경우, 부모 프로세스에게 보내는 종료 시그널
+	//자식 프로세스일 경우, 부모 프로세스에게 보내는 종료(임박) 시그널
+	struct semaphore wait_sema;
+	//부모 프로세스에게 받을 종료 시그널용 세마포어
 	struct semaphore exit_sema;
 
 	bool is_initd; //이 스레드(프로세스)가 init 프로세스인지를 알려주는 bool 멤버
