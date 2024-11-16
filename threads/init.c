@@ -242,8 +242,10 @@ run_task (char **argv) {
 	printf ("Executing '%s':\n", task);
 #ifdef USERPROG
 	if (thread_tests){
+		printf("thread_tests 분기 통과\n");
 		run_test (task);
 	} else {
+		printf("initd 생성 waiting\n");
 		process_wait (process_create_initd (task));
 	}
 #else

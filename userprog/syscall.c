@@ -206,6 +206,7 @@ int fork(const char *thread_name)
 
 int open (const char *file)
 {
+	printf("OPEN\n");
 	//매개변수로 건네받은 file이 유효한지 검사
 	check_address(file);
 	//파일을 여는 도중에 다른 프로세스가 파일 디스크립터를 해제하는 것을 방지
@@ -287,13 +288,13 @@ int read(int fd, void *buffer, unsigned size)
 	//매개변수로 입력받은 fd와 동일한 값을 지닌 file 가져오기
 	struct file* f = process_get_file(fd);
 	//파일이 유효하지 않거나, stdout, stderr를 읽으려고 하는 경우
-	if (f == NULL || fd == 1 || fd == 2)
+	if (f == NULL || f == STDOUT || f == STDERR)
 		return -1;
 	//읽어오는 도중에 write가 일어나면 안되니 lock 걸기
 	lock_acquire(&filesys_lock); 
 	//만약 매개변수 fd가 0이다 == stdin에 저장된 데이터를 읽겠다
 	//input_getc()로 읽어오면 됨
-	if (fd == 0)
+	if (f == STDIN)
 	{
 		int i = 0;
 		char c;
@@ -332,15 +333,15 @@ int write(int fd, const void *buffer, unsigned length)
 	check_address(buffer);
 	int result = -1;
 	struct file* f = process_get_file(fd);
-	//만약 파일이 유효하지 않거나, STDIN이나 STDERR에 데이터를 작성하려고 하면
-	if (f == NULL || fd == 0)
+	//만약 파일이 유효하지 않거나, STDIN에 데이터를 작성하려고 하면
+	if (f == NULL || f == STDIN)
 	{
 		return result;
 	}
 	//write하는 동안 파일이 삭제되면 안되므로 lock
 	lock_acquire(&filesys_lock);
 	//만약 stdin으로 쓰는거면 : putbuf 함수로 입력
-	if (fd == 1 || fd == 2)
+	if (f == STDOUT || f == STDERR)
 	{
 		putbuf(buffer, length);
 		lock_release(&filesys_lock);
