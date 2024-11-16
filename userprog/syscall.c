@@ -269,11 +269,59 @@ bool remove(const char *file)
 
 int filesize(int fd)
 {
-
+	//매개변수로 입력받은 fd와 동일한 값을 지닌 file 가져오기
+	struct file* f = process_get_file(fd);
+	//만약 유효하지 않은 파일이다 : return -1
+	if (f == NULL)
+		return -1;
+	//파일의 크기 반환
+	return file_length(f);
 }
 
+//fd에서 얼마만큼의 데이터를 읽었는지를(크기를) 반환
 int read(int fd, void *buffer, unsigned size)
 {
+	//buffer가 유효한지 검사
+	check_address(buffer);
+	int result;
+	//매개변수로 입력받은 fd와 동일한 값을 지닌 file 가져오기
+	struct file* f = process_get_file(fd);
+	//파일이 유효하지 않거나, stdout, stderr를 읽으려고 하는 경우
+	if (f == NULL || fd == 1 || fd == 2)
+		return -1;
+	//읽어오는 도중에 write가 일어나면 안되니 lock 걸기
+	lock_acquire(&filesys_lock); 
+	//만약 매개변수 fd가 0이다 == stdin에 저장된 데이터를 읽겠다
+	//input_getc()로 읽어오면 됨
+	if (fd == 0)
+	{
+		int i = 0;
+		char c;
+		//매개변수 size만큼
+		for (i; i < size; i++)
+		{
+			//input_getc()로 stdin에서 한 글자 읽어오기
+			c = input_getc();
+			//buffer에 stdin에서 가져온 문자 입력
+			//오류나면 포인터 형변환 해보기
+			//error: invalid use of void expression
+			//형변환 해주니 문제 해결
+			*(char *)(buffer++) = c;
+			//문자열 종료 문자 만나면 break
+			if (c == '\0')
+				break;
+		}
+		//lock 풀어주기
+		lock_release(&filesys_lock);
+		return i;
+	}
+		
+	//file_read로 f의 데이터를 size만큼 읽어와서 buffer에 저장
+	result = file_read(f, buffer, size);
+	//lock 풀어주기
+	lock_release(&filesys_lock);
+	
+	return result;
 
 }
 
