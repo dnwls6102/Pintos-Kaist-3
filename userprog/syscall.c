@@ -7,9 +7,28 @@
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
+#include "filesys/filesys.h"
+#include "filesys/file.h"
+#include "userprog/process.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
+
+
+void halt (void) NO_RETURN;
+void exit (int status) NO_RETURN;
+int fork (const char *thread_name);
+int exec (const char *file);
+int wait (pid_t);
+bool create (const char *file, unsigned initial_size);
+bool remove (const char *file);
+int open (const char *file);
+int filesize (int fd);
+int read (int fd, void *buffer, unsigned length);
+int write (int fd, const void *buffer, unsigned length);
+void seek (int fd, unsigned position);
+unsigned tell (int fd);
+void close (int fd);
 
 /* System call.
  *
@@ -81,6 +100,12 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			f -> R.rax = create(f -> R.rdi, f -> R.rsi);
 		case SYS_REMOVE:
 			//bool remove(const char *file)
+			/*
+			../../userprog/syscall.c:234:6: error: conflicting types for ‘remove’
+			../../userprog/syscall.c:87:17: note: previous implicit declaration of ‘remove’ was here
+    		f -> R.rax = remove(f -> R.rdi);
+			//프로토타입이 선언된 파일(lib/user/syscall.h)를 포함하지 않고 바로 써서 나온 오류
+			*/
 			f -> R.rax = remove(f -> R.rdi);
 		case SYS_FILESIZE:
 			//int filesize(int fd)
@@ -181,7 +206,32 @@ int fork(const char *thread_name)
 
 int open (const char *file)
 {
+	//매개변수로 건네받은 file이 유효한지 검사
+	check_address(file);
+	//파일을 여는 도중에 다른 프로세스가 파일 디스크립터를 해제하는 것을 방지
+	lock_acquire(&filesys_lock);
+	//열려고 하는 파일의 file descriptor 반환
+	struct file* open_file = filesys_open(file);
+	//만약 파일 open에 실패했다면
+	if (open_file == NULL)
+	{	
+		//lock 풀어주고 바로 return
+		lock_release(&filesys_lock);
+		return -1;
+	}
 
+	//process의 fdt에 file을 할당하기
+	//오류가 나면 -1을 반환, 그렇지 않다면 파일의 인덱스 반환
+	int fd = process_add_file(file);
+
+	//fdt에 할당을 실패했다면 : 파일 닫기
+	if (fd == -1)
+		file_close(open_file);
+
+	//lock 해제
+	lock_release(&filesys_lock);
+
+	return fd;
 }
 
 void close(int fd) {
@@ -191,12 +241,30 @@ void close(int fd) {
 
 bool create(const char *file, unsigned initial_size)
 {
+	//매개변수로 건네받은 file이 유효한지 검사
+	check_address(file);
+	//파일을 생성하는 중에 다른 프로세스가 이 파일이 포함된 디렉터리 구조를 변경하려고 하면 안됨
+	lock_acquire(&filesys_lock);
+	//결과값 저장
+	bool result = filesys_create(file, initial_size);
+	//lock 해제
+	lock_release(&filesys_lock);
 
+	return result;
 }
 
 bool remove(const char *file)
 {
+	//file이 유효한지 검사
+	check_address(file);
+	//create와 비슷한 맥락에서, 삭제하려는 순간 그 파일이 포함된 디렉터리 구조가 변경되면 안됨
+	lock_acquire(&filesys_lock);
+	//결과값 저장
+	bool result = filesys_remove(file);
+	//lock 해제
+	lock_release(&filesys_lock);
 
+	return result;
 }
 
 int filesize(int fd)
@@ -221,5 +289,5 @@ void seek (int fd, unsigned position)
 
 unsigned tell (int fd)
 {
-	
+
 }

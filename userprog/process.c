@@ -185,6 +185,8 @@ __do_fork (void *aux) {
 	 * TODO:       the resources of parent.*/
 	//주석 작성 필요
 	//FDT_COUNT_LIMIT
+	// error: expected identifier before numeric constant 오류 해결:
+	//올바르지 않은 수식(fd_idx -> FDT_COUNT_LIMIT)을 적을 경우 발생했었음
 	if (parent -> fd_idx > FDT_COUNT_LIMIT)
 		goto error;
 	
@@ -838,4 +840,25 @@ get_child_process(int tid)
 	}
 	//일치하는 tid가 없다면
 	return NULL;
+}
+
+int process_add_file(struct file* f)
+{
+	struct thread *current_t = thread_current();
+	
+	//현재 스레드의 fd_idx가 한계 수치보다 작고, 테이블에 빈 공간을 만날때까지
+	while(current_t -> fd_idx <= FDT_COUNT_LIMIT && current_t -> fdt[current_t -> fd_idx] != NULL)
+	{
+		//fd_idx 증가
+		current_t -> fd_idx += 1;
+	}
+	//현재 fdt가 한계까지 꽉 찬 경우
+	if (current_t -> fd_idx > FDT_COUNT_LIMIT)
+		return -1; //바로 return
+	//현재 스레드의 fdt의 빈 공간에 매개변수로 입력받은 파일 할당
+	current_t -> fdt[current_t -> fd_idx] = f;
+
+	//할당된 파일의 fdt에서의 인덱스를 리턴
+	return current_t -> fd_idx;
+
 }
