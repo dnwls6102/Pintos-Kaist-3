@@ -325,8 +325,30 @@ int read(int fd, void *buffer, unsigned size)
 
 }
 
+//fd 파일에 buffer에 있는 내용을 length만큼 작성
 int write(int fd, const void *buffer, unsigned length)
 {
+	//buffer가 유효한지 확인
+	check_address(buffer);
+	int result = -1;
+	struct file* f = process_get_file(fd);
+	//만약 파일이 유효하지 않거나, STDIN이나 STDERR에 데이터를 작성하려고 하면
+	if (f == NULL || fd == 0)
+	{
+		return result;
+	}
+	//write하는 동안 파일이 삭제되면 안되므로 lock
+	lock_acquire(&filesys_lock);
+	//만약 stdin으로 쓰는거면 : putbuf 함수로 입력
+	if (fd == 1 || fd == 2)
+	{
+		putbuf(buffer, length);
+		lock_release(&filesys_lock);
+		return length;
+	}
+	result = file_write(f, buffer, length);
+	lock_release(&filesys_lock);
+	return result;
 
 }
 
