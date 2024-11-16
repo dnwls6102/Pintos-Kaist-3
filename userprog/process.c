@@ -236,7 +236,9 @@ void argument_stack(char* argv[], int argc, struct intr_frame* _if)
 	//위에서 아래로 자라는 구조이기 때문에, _if -> rsp에서 감산을 해줘야 함
 	for (int i = argc - 1; i >= 0; i--)
 	{
-		argv_len = strlen(argv[i] + 1); //+1까지 해주는 이유: null 문자의 길이까지 고려해야 하니까
+		//오류 해결 : Page fault at 0x47480000: not present error reading page in user context.
+		//strlen(argv[i] + 1)로 연산을 해버려서 오류가 난 것으로 보여짐
+		argv_len = strlen(argv[i]) + 1; //+1까지 해주는 이유: null 문자의 길이까지 고려해야 하니까
 		_if -> rsp -= argv_len; //주소값 연산 해주기
 		memcpy(_if -> rsp, argv[i], argv_len); //_if -> rsp로 argv_len만큼 argv[i]의 내용을 옮기기 == 스택에 명령어 push
 		argv_addr[i] = _if -> rsp; //명령어가 저장된 주소(스택에서의 명령어 시작점)을 argv_addr[i]에 저장
@@ -330,12 +332,10 @@ process_exec (void *f_name) {
 		return -1; //스레드 삭제
 	}
 		
-
-	printf("TEST\n");
 	/*Project 2 : Command Line Parsing*/	
 	argument_stack(argv, argc, &_if);
 	//디버깅용
-	hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
+	//hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 
 	palloc_free_page (file_name);
 

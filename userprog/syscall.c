@@ -63,7 +63,7 @@ syscall_init (void) {
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
-	printf ("system call!\n");
+	//printf ("system call!\n");
 	//Linux에서 시스템 콜의 번호는 rax에 저장됨
 	uint64_t number = f -> R.rax;
 	//나머지 인자의 레지스터 순서 : %rdi, %rsi, %rdx, %r10, %r8, %r9
