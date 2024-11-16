@@ -35,6 +35,9 @@ syscall_init (void) {
 	 * mode stack. Therefore, we masked the FLAG_FL. */
 	write_msr(MSR_SYSCALL_MASK,
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
+	
+	//파일 간의 경쟁 상황을 막기 위한 global lock 초기화
+	lock_init(&filesys_lock);
 }
 
 /* The main system call interface */
@@ -67,6 +70,34 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_FORK:
 			//pid_t fork(const char *thread_name)
 			f -> R.rax = fork(f -> R.rdi);
+		case SYS_OPEN:
+			//int open(const char *file)
+			f -> R.rax = open(f -> R.rdi);
+		case SYS_CLOSE:
+			//void close(int fd)
+			close(f -> R.rdi);
+		case SYS_CREATE:
+			//bool create(const char *file, unsigned initial_size)
+			f -> R.rax = create(f -> R.rdi, f -> R.rsi);
+		case SYS_REMOVE:
+			//bool remove(const char *file)
+			f -> R.rax = remove(f -> R.rdi);
+		case SYS_FILESIZE:
+			//int filesize(int fd)
+			f -> R.rax = filesize(f -> R.rdi);
+		case SYS_READ:
+			//int read(int fd, void *buffer, unsigned length)
+			f -> R.rax = read(f -> R.rdi, f -> R.rsi, f -> R.rdx);
+		case SYS_WRITE:
+			//int write(int fd, const void *buffer, unsigned length)
+			f -> R.rax = write(f -> R.rdi, f -> R.rsi, f -> R.rdx);
+		case SYS_SEEK:
+			//void seek(int fd, unsigned position)
+			seek(f -> R.rdi, f -> R.rsi);
+		case SYS_TELL:
+			//unsigned tell(int fd)
+			tell(f -> R.rdi);
+		
 		default:
 			exit(-1);
 	}
@@ -148,7 +179,47 @@ int fork(const char *thread_name)
 	return process_fork(thread_current(), NULL);
 }
 
+int open (const char *file)
+{
+
+}
+
 void close(int fd) {
 	//구현하기
     return;
+}
+
+bool create(const char *file, unsigned initial_size)
+{
+
+}
+
+bool remove(const char *file)
+{
+
+}
+
+int filesize(int fd)
+{
+
+}
+
+int read(int fd, void *buffer, unsigned size)
+{
+
+}
+
+int write(int fd, const void *buffer, unsigned length)
+{
+
+}
+
+void seek (int fd, unsigned position)
+{
+
+}
+
+unsigned tell (int fd)
+{
+	
 }
