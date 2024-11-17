@@ -57,11 +57,11 @@ process_create_initd (const char *file_name) {
 
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
-	printf("initd생성 완료\n");
+	//printf("initd생성 완료\n");
 	if (tid == TID_ERROR)
 	{
 		palloc_free_page (fn_copy);
-		printf("사실안됨ㅋ\n");
+		//printf("사실안됨ㅋ\n");
 	}
 	
 	return tid;
@@ -885,4 +885,16 @@ struct file* process_get_file(int fd)
 	}
 
 	return result_file;
+}
+
+void process_close_file(int fd)
+{
+	//현재 스레드 정보 가져오기
+	struct thread* current_t = thread_current();
+	//매개변수로 받은 파일 디스크립터 인덱스가 3미만(표준 출력들)이거나, 최대 한도보다 크면
+	if (fd < 3 || fd >= FDT_COUNT_LIMIT)
+		return;
+	//fdt에서 매개변수로 받아온 fd 인덱스의 파일 할당 해제
+	current_t -> fdt[fd] = NULL;
+	return;
 }

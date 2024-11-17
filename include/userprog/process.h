@@ -13,6 +13,7 @@ void process_activate (struct thread *next);
 
 int process_add_file(struct file *t);
 struct file* process_get_file(int fd);
+void process_close_file(int fd);
 
 #define STDIN 0x1
 #define STDOUT 0x2

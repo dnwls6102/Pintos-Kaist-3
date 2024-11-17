@@ -219,7 +219,7 @@ thread_create (const char *name, int priority,
 	t -> fdt[0] = STDIN;
 	t -> fdt[1] = STDOUT;
 	t -> fdt[2] = STDERR;
-	printf("fdt 할당 잘 됨: STDIN: %d\n", t -> fdt[0]);
+	//printf("fdt 할당 잘 됨: STDIN: %d\n", t -> fdt[0]);
 
 	list_push_back(&thread_current() -> child_list, &t -> child_elem); //현재 프로세스(스레드)의 child_list에 생성할 프로세스(스레드) 삽입
 	#endif

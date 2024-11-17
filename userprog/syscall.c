@@ -236,7 +236,20 @@ int open (const char *file)
 }
 
 void close(int fd) {
-	//구현하기
+	//파일 가져오기
+	struct file* f = process_get_file(fd);
+	//만약 f가 NULL이면
+	if (f == NULL)
+		return;
+	//lock 걸기(다른 프로세스가 read하고 있는 파일을 삭제하면 안되니까)
+	lock_acquire(&filesys_lock);
+	//현재 스레드의 fdt에서 할당 해제시키기
+	process_close_file(fd);
+	//파일 종료
+	file_close(f);
+	//lock 해제
+	lock_release(&filesys_lock);
+
     return;
 }
 
