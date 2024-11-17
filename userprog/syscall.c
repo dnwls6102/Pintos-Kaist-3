@@ -355,10 +355,20 @@ int write(int fd, const void *buffer, unsigned length)
 
 void seek (int fd, unsigned position)
 {
+	struct file* f = process_get_file(fd);
+	//파일이 유효하지 않거나, 지금 STDIN과 STDERR 사이를 읽고 있는 경우 return
+	if (f == NULL || (f >= STDIN && f <= STDERR))
+		return;
 
+	file_seek(f, position);
 }
 
 unsigned tell (int fd)
 {
+	struct file* f = process_get_file(fd);
+	//파일이 유효하지 않거나, 지금 STDIN과 STDERR 사이를 읽고 있는 경우 return
+	if (f == NULL || (f >= STDIN && f <= STDERR))
+		return -1;
 
+	return file_tell(f);
 }

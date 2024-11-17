@@ -197,7 +197,7 @@ thread_create (const char *name, int priority,
 	tid_t tid;
 	//커널 스택 할당을 위한 kernel_threads_frame
 	//struct kernel_thread_frame *kf;
-
+	
 	ASSERT (function != NULL);
 
 	/* Allocate thread. */
@@ -234,7 +234,7 @@ thread_create (const char *name, int priority,
 	t->tf.ss = SEL_KDSEG;
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
-
+	
 	/* Add to run queue. */
 	thread_unblock (t);
 
