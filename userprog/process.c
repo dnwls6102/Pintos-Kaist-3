@@ -379,7 +379,19 @@ process_wait (tid_t child_tid UNUSED) {
 	sema_up(&child_thread -> exit_sema);
 
 	//자식 스레드의 상태 return
-	return child_thread -> status;
+	/*
+	Executing 'exec-boundary':
+	(exec-boundary) begin
+	(child-simple) run
+	child-simple: exit(81)
+	(exec-boundary) fork
+	(exec-boundary) wait
+	(exec-boundary) wait: FAILED
+	exec-boundary: exit(1)
+	오류 해결 : return 값을 child_thread의 status가 아닌 exit_status로 해줘야 함
+	status는 무조건 0, 1, 2, 3으로 고정되어 있음.
+	*/
+	return child_thread -> exit_status;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
@@ -392,8 +404,13 @@ process_exit (void) {
 	 * TODO: We recommend you to implement process resource cleanup here. */
 
 	//주석 작성 필요
-	for (int fd = 0; fd < curr -> fd_idx ; fd++)
-		close(fd);
+	// for (int fd = 0; fd < curr -> fd_idx ; fd++)
+	// 	close(fd);
+	for (int i = 3; i < FDT_COUNT_LIMIT; i++)
+	{
+		if (curr->fdt[i] != NULL)
+			close(i);
+	}
 	palloc_free_multiple(curr -> fdt, FDT_PAGES);
 
 	file_close(curr -> running_file);
