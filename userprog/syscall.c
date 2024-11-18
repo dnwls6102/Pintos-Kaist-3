@@ -89,15 +89,19 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_FORK:
 			//pid_t fork(const char *thread_name)
 			f -> R.rax = fork(f -> R.rdi);
+			break;
 		case SYS_OPEN:
 			//int open(const char *file)
 			f -> R.rax = open(f -> R.rdi);
+			break;
 		case SYS_CLOSE:
 			//void close(int fd)
 			close(f -> R.rdi);
+			break;
 		case SYS_CREATE:
 			//bool create(const char *file, unsigned initial_size)
 			f -> R.rax = create(f -> R.rdi, f -> R.rsi);
+			break;
 		case SYS_REMOVE:
 			//bool remove(const char *file)
 			/*
@@ -107,21 +111,27 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			//프로토타입이 선언된 파일(lib/user/syscall.h)를 포함하지 않고 바로 써서 나온 오류
 			*/
 			f -> R.rax = remove(f -> R.rdi);
+			break;
 		case SYS_FILESIZE:
 			//int filesize(int fd)
 			f -> R.rax = filesize(f -> R.rdi);
+			break;
 		case SYS_READ:
 			//int read(int fd, void *buffer, unsigned length)
 			f -> R.rax = read(f -> R.rdi, f -> R.rsi, f -> R.rdx);
+			break;
 		case SYS_WRITE:
 			//int write(int fd, const void *buffer, unsigned length)
 			f -> R.rax = write(f -> R.rdi, f -> R.rsi, f -> R.rdx);
+			break;
 		case SYS_SEEK:
 			//void seek(int fd, unsigned position)
 			seek(f -> R.rdi, f -> R.rsi);
+			break;
 		case SYS_TELL:
 			//unsigned tell(int fd)
-			tell(f -> R.rdi);
+			f -> R.rax = tell(f -> R.rdi);
+			break;
 		
 		default:
 			exit(-1);
