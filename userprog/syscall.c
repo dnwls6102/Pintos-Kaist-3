@@ -224,7 +224,11 @@ int fork(const char *thread_name, struct intr_frame* f)
 	check_address(thread_name);
 
 	//process_fork 호출(자식의 pid return)
-	return process_fork(thread_current(), f);
+	//Interrupt 0x0d (#GP General Protection Exception) at rip=8004207a4f
+	//thread_current() 대신에 thread_name을 적어야 함
+	//매개변수로 const char*를 요구하니 당연한 결과
+	//다른 테케는 어떻게 통과한건지 원인 불명
+	return process_fork(thread_name, f);
 }
 
 int open (const char *file)

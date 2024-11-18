@@ -96,7 +96,9 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 
 	//위 방식대로 하면 제대로 안될수도 있을 우려가 있다
 	//그냥 매개변수로 인터럽트 프레임 받아와서 하기
-	memcpy(&current_t -> parent_if, if_, sizeof(struct intr_frame *));
+	//Kernel Panic 오류 : sizeof(sturct intr_frame *)로 하면 오류가 남
+	//이유? 모름
+	memcpy(&current_t -> parent_if, if_, sizeof(struct intr_frame));
 
 	/*프로세스를 복제하고, 만약 실패하면 그대로 return*/
 	int tid;
@@ -135,7 +137,7 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 
 	/* 3. TODO: Allocate new PAL_USER page for the child and set result to
 	 *    TODO: NEWPAGE. */
-	newpage = palloc_get_page(PAL_ZERO);
+	newpage = palloc_get_page(PAL_USER | PAL_ZERO);
 	if (newpage == NULL)
 		return false;
 	/* 4. TODO: Duplicate parent's page to the new page and
@@ -200,7 +202,7 @@ __do_fork (void *aux) {
 	current -> fd_idx = parent -> fd_idx;
 	struct file *file;
 	//FDT_COUNT_LIMIT
-	for (int fd = 0; fd < 128; fd++)
+	for (int fd = 0; fd < FDT_COUNT_LIMIT; fd++)
 	{
 		file = parent -> fdt[fd];
 		if (file == NULL)
@@ -212,8 +214,6 @@ __do_fork (void *aux) {
 			current -> fdt[fd] = file;
 	}
 
-	process_init ();
-
 	//성공적으로 복제 완료하면 sema 풀어주기
 	sema_up(&current -> fork_sema);
 
@@ -222,7 +222,8 @@ __do_fork (void *aux) {
 		do_iret (&if_);
 error:
 	sema_up(&current -> fork_sema);
-	thread_exit ();
+	//thread_exit ();
+	exit(-2);
 }
 
 void argument_stack(char* argv[], int argc, struct intr_frame* _if)
