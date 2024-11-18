@@ -164,8 +164,10 @@ void halt(void)
 //void exit(int status) NO_RETURN
 void exit(int status)
 {
+	//test 통과를 위한 exit_status 초기화
+	thread_current() -> exit_status = status;
 	//프로세스 이름 : exit(status)가 출력되어야 함
-	printf("%s: exit(%d)\n", thread_current() -> name, thread_current() -> status);
+	printf("%s: exit(%d)\n", thread_current() -> name, thread_current() -> exit_status);
 
 	thread_exit();
 }
@@ -216,7 +218,6 @@ int fork(const char *thread_name, struct intr_frame* f)
 
 int open (const char *file)
 {
-	printf("OPEN\n");
 	//매개변수로 건네받은 file이 유효한지 검사
 	check_address(file);
 	//파일을 여는 도중에 다른 프로세스가 파일 디스크립터를 해제하는 것을 방지

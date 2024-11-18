@@ -122,6 +122,9 @@ struct thread {
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
 
+	//test case 통과를 위한 exit_status
+	int exit_status;
+
 	/*Process Hierachy 구현을 위한 멤버*/
 	struct thread* parent; //현재 프로세스의 부모 프로세스
 	struct list child_list; //현재 스레드의 자식 프로세스들이 들어있는 리스트
