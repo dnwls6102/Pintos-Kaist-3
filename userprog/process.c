@@ -196,8 +196,9 @@ __do_fork (void *aux) {
 	//FDT_COUNT_LIMIT
 	// error: expected identifier before numeric constant 오류 해결:
 	//올바르지 않은 수식(fd_idx -> FDT_COUNT_LIMIT)을 적을 경우 발생했었음
-	if (parent -> fd_idx > FDT_COUNT_LIMIT)
-		goto error;
+	//multi-oom에서 이 조건에 걸려서 10개가 채워지지 않은 상태에서 exit(-2)로 넘어감
+	// if (parent -> fd_idx > FDT_COUNT_LIMIT)
+	// 	goto error;
 	
 	current -> fd_idx = parent -> fd_idx;
 	struct file *file;
