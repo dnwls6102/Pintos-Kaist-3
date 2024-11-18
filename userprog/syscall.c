@@ -177,8 +177,15 @@ void exit(int status)
 int exec(const char *cmd_line)
 {
 	//만약 cmd_line이 유효하지 않다면
-	if (cmd_line == NULL)
-		exit(-1);
+	// if (cmd_line == NULL)
+	// 	exit(-1);
+
+	/*
+	cmd_line == NULL 말고 check_address(cmd_line)으로 유효성 체크를 해줘야 하는 이유:
+	cmd_line으로 (값 자체는) 유효한 메모리 주소이지만, 실제로 물리 메모리와 매핑이 되어있지 않는
+	메모리 주소값일 수 있음. 이를 읽어들이지 않기 위해 check_address로 검사해야 함
+	*/
+	check_address(cmd_line);
 	
 	//원본 cmd_line의 복사본을 담을 char 포인터 변수 temp_str
 	//process_exec을 호출해 커맨드 라인을 파싱하는 과정을 거쳐야 하는데
