@@ -234,7 +234,8 @@ int open (const char *file)
 
 	//process의 fdt에 file을 할당하기
 	//오류가 나면 -1을 반환, 그렇지 않다면 파일의 인덱스 반환
-	int fd = process_add_file(file);
+	//inode 관련 오류 : process_add_file(file)을 process_add_file(open_file)로 고치니 해결
+	int fd = process_add_file(open_file);
 
 	//fdt에 할당을 실패했다면 : 파일 닫기
 	if (fd == -1)
