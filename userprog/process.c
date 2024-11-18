@@ -614,7 +614,11 @@ load (const char *file_name, struct intr_frame *if_) {
 	/* Set up stack. */
 	if (!setup_stack (if_))
 		goto done;
-
+	//현재 프로세스에 실행중인 파일 등록
+	t -> running_file = file;
+	//실행 중인 파일에 write할 수 없도록 deny하기
+	//global lock만으로는 부족한걸까?
+	file_deny_write(file);
 	/* Start address. */
 	if_->rip = ehdr.e_entry;
 
@@ -625,7 +629,9 @@ load (const char *file_name, struct intr_frame *if_) {
 
 done:
 	/* We arrive here whether the load is successful or not. */
-	file_close (file);
+	//Kernel PANIC at ../../filesys/inode.c:304 in inode_allow_write(): assertion `inode->deny_write_cnt > 0' failed. 오류 해결
+	//파일 열자마자 닫아버리면 file의 inode의 deny_write_cnt가 0이 되어버려 이후에 file_close가 이루어지지 않는다.
+	//file_close (file);
 	return success;
 }
 
