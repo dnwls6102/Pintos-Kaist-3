@@ -875,24 +875,28 @@ struct file* process_get_file(int fd)
 	//매개변수로 받아온 파일 디스크립터와 일치하는 파일 정보가 들어갈 변수 result_file
 	struct file* result_file = NULL;
 	
-	//현재 스레드의 fdt 전체 순회
-	//3부터 순회하는 이유 : 0에는 stdin, 1에는 stdout, 2에는 stderr가 예약됨
-	for (int i = 3; i <= current_t -> fd_idx; i++)
-	{
-		//만약 fdt[fd]에 파일이 할당되어 있으면
-		if (i == fd)
-			result_file = current_t -> fdt[i]; //result_file에 복사
-	}
+	// //현재 스레드의 fdt 전체 순회
+	// //3부터 순회하는 이유 : 0에는 stdin, 1에는 stdout, 2에는 stderr가 예약됨
+	// for (int i = 3; i <= current_t -> fd_idx; i++)
+	// {
+	// 	//만약 fdt[fd]에 파일이 할당되어 있으면
+	// 	if (i == fd)
+	// 		result_file = current_t -> fdt[i]; //result_file에 복사
+	// }
+
+	if (fd >= 0 && fd <= FDT_COUNT_LIMIT)
+		result_file = current_t -> fdt[fd];
 
 	return result_file;
 }
+
 
 void process_close_file(int fd)
 {
 	//현재 스레드 정보 가져오기
 	struct thread* current_t = thread_current();
-	//매개변수로 받은 파일 디스크립터 인덱스가 3미만(표준 출력들)이거나, 최대 한도보다 크면
-	if (fd < 3 || fd >= FDT_COUNT_LIMIT)
+	//매개변수로 받은 파일 디스크립터 인덱스가 0미만(오류)이거나, 최대 한도보다 크면
+	if (fd < 0 || fd >= FDT_COUNT_LIMIT)
 		return;
 	//fdt에서 매개변수로 받아온 fd 인덱스의 파일 할당 해제
 	current_t -> fdt[fd] = NULL;
