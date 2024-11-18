@@ -17,7 +17,7 @@ void syscall_handler (struct intr_frame *);
 
 void halt (void) NO_RETURN;
 void exit (int status) NO_RETURN;
-int fork (const char *thread_name);
+int fork (const char *thread_name, struct intr_frame *f);
 int exec (const char *file);
 int wait (pid_t);
 bool create (const char *file, unsigned initial_size);
@@ -88,7 +88,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			break;
 		case SYS_FORK:
 			//pid_t fork(const char *thread_name)
-			f -> R.rax = fork(f -> R.rdi);
+			f -> R.rax = fork(f -> R.rdi, f);
 			break;
 		case SYS_OPEN:
 			//int open(const char *file)
@@ -136,8 +136,8 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		default:
 			exit(-1);
 	}
-
-	thread_exit ();
+	//주의 : 이거 안없애면 정상적으로 테스트 안됨
+	//thread_exit ();
 }
 
 //유저가 건네준 메모리 주소가 유효한지를 판별하는 함수 check_address
@@ -205,13 +205,13 @@ int wait(int pid)
 }
 
 //pid_t fork(const char *thread_name)
-int fork(const char *thread_name)
+int fork(const char *thread_name, struct intr_frame* f)
 {	
 	//fork를 요청한 스레드가 유효한 스레드인지 확인
 	check_address(thread_name);
 
 	//process_fork 호출(자식의 pid return)
-	return process_fork(thread_current(), NULL);
+	return process_fork(thread_current(), f);
 }
 
 int open (const char *file)
