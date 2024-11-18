@@ -10,6 +10,7 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "userprog/process.h"
+#include "threads/palloc.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -186,13 +187,16 @@ int exec(const char *cmd_line)
 	//palloc_get_page로 메모리 공간 할당 받기(할당할 공간이 없으면 NULL 반환)
 	//메모리 공간 할당을 palloc으로 받는 이유
 	//커널 공간에서 메모리 공간을 정렬하고 보호하기 위함
-	temp_str = palloc_get_page(0);
+
+	//Page fault at 0x4241000: not present error writing page in kernel context. 오류 해결
+	//palloc_get_page(0)으로 하지 말고 palloc_get_page(PAL_ZERO)로 하면 해결 (이유 아직 모름)
+	temp_str = palloc_get_page(PAL_ZERO);
 	//palloc으로 페이지 공간을 할당하지 못하면 exit하기
 	if (temp_str == NULL)
 		exit(-1);
 	//cmd_line의 내용을 temp_str로 PGSIZE(페이지 크기)만큼 복사
 	//strcpy를 안쓰고 strlcpy를 쓰는 이유 : string.h에 쓰지 말라고 선언되어 있음
-	strlcpy(cmd_line, temp_str, PGSIZE);
+	strlcpy(temp_str, cmd_line, PGSIZE);
 
 	//process_exec을 실행에 실패하면 exit
 	if(process_exec(temp_str) == -1)
