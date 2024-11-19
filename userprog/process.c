@@ -92,12 +92,12 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	//생성하는 스레드(부모 스레드)의 인터럽트 프레임을 전달해야 함
 	//rsp()함수를 통해 인터럽트 프레임의 시작 주소를 가져오기
 	//레지스터 정보는 페이지의 맨 위에 저장되에 있다
-	//struct intr_frame* f = pg_round_up(rrsp()) - sizeof(struct intr_frame *);
+	//struct intr_frame* f = pg_round_up(rrsp()) - sizeof(struct intr_frame);
 
 	//위 방식대로 하면 제대로 안될수도 있을 우려가 있다
 	//그냥 매개변수로 인터럽트 프레임 받아와서 하기
 	//Kernel Panic 오류 : sizeof(sturct intr_frame *)로 하면 오류가 남
-	//이유? 모름
+	//이유 : 포인터 변수는 주소값만 저장하는 변수라서 크기가 작음 : sizeof(struct intr_frame *) : 8 sizeof(struct intr_frame) : 192
 	memcpy(&current_t -> parent_if, if_, sizeof(struct intr_frame));
 
 	/*프로세스를 복제하고, 만약 실패하면 그대로 return*/
@@ -137,6 +137,9 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 
 	/* 3. TODO: Allocate new PAL_USER page for the child and set result to
 	 *    TODO: NEWPAGE. */
+	//PAL_USER | PAL_ZERO의 의미 : 사용자 공간에 메모리 공간을 할당받을건데, 그것들을 다 0으로 초기화 해달라
+	//PAL_USER : 사용자 공간의 메모리 공간을 할당하는 것을 요청하는 flag
+	//PAL_USER를 하지 않으면 기본적으로 커널 공간의 메모리 공간을 할당해줌
 	newpage = palloc_get_page(PAL_USER | PAL_ZERO);
 	if (newpage == NULL)
 		return false;
@@ -619,6 +622,10 @@ load (const char *file_name, struct intr_frame *if_) {
 	t -> running_file = file;
 	//실행 중인 파일에 write할 수 없도록 deny하기
 	//global lock만으로는 부족한걸까?
+	//filesys_lock : 운영체제 상에서 프로세스/스레드가 파일을 조작하는 행위 자체에 대한 lock
+	//하나의 프로세스가 filesys_lock을 소유하고 있으면, 나머지 프로세스는 자기 차례에 (다른 파일에 대해서도) open, close 등이 불가능
+	//file_deny_write : 특정 파일을 프로세스 / 스레드가 조작하는 행위에 대한 세마포어
+	//어느 프로세스가 A라는 파일을 실행 중이라면, 다른 프로세스는 자신의 턴이 오더라도 그 파일에 대한 조작을 할 수 없음.(다른 파일에 대한 조작은 가능)
 	file_deny_write(file);
 	/* Start address. */
 	if_->rip = ehdr.e_entry;

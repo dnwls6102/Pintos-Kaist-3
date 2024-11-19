@@ -196,7 +196,9 @@ int exec(const char *cmd_line)
 	//커널 공간에서 메모리 공간을 정렬하고 보호하기 위함
 
 	//Page fault at 0x4241000: not present error writing page in kernel context. 오류 해결
-	//palloc_get_page(0)으로 하지 말고 palloc_get_page(PAL_ZERO)로 하면 해결 (이유 아직 모름)
+	//palloc_get_page(0)으로 하지 말고 palloc_get_page(PAL_ZERO)로 하면 해결
+	//PAL_ZERO의 의미 : 해당 공간을 모두 0으로 초기화해주겠다는 의미
+	//PAL flag들이 1,2,4인 이유 : 비트 연산을 위함
 	temp_str = palloc_get_page(PAL_ZERO);
 	//palloc으로 페이지 공간을 할당하지 못하면 exit하기
 	if (temp_str == NULL)
