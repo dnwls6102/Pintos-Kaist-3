@@ -223,6 +223,10 @@ thread_create (const char *name, int priority,
 
 	list_push_back(&thread_current() -> child_list, &t -> child_elem); //현재 프로세스(스레드)의 child_list에 생성할 프로세스(스레드) 삽입
 	#endif
+	#ifdef VM
+	//spt 초기화
+	supplemental_page_table_init(&t -> spt);
+	#endif
 
 	/* Call the kernel_thread if it scheduled.
 	 * Note) rdi is 1st argument, and rsi is 2nd argument. */

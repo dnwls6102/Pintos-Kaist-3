@@ -77,6 +77,7 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct page *page = NULL;
 	/* TODO: Fill this function. */
 
+
 	return page;
 }
 
@@ -88,6 +89,9 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
 	int succ = false;
 	/* TODO: Fill this function. */
+
+	if (hash_insert(spt, &page -> spt_elem) == NULL)
+		succ = true;
 
 	return succ;
 }
@@ -204,6 +208,7 @@ vm_do_claim_page (struct page *page) {
 /* Supplemental Page Table 구현을 위해 작성 */
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
+	hash_init(&spt -> hash_table, hash_func, less_func, NULL);
 }
 
 /* Copy supplemental page table from src to dst */

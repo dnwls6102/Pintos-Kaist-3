@@ -2,6 +2,7 @@
 #define VM_VM_H
 #include <stdbool.h>
 #include "threads/palloc.h"
+#include "hash.h"
 
 enum vm_type {
 	/* page not initialized */
@@ -22,6 +23,12 @@ enum vm_type {
 
 	/* DO NOT EXCEED THIS VALUE. */
 	VM_MARKER_END = (1 << 31),
+};
+
+enum page_status {
+	MEMORY = 0,
+	FILE = 1,
+	SWAP = 2
 };
 
 #include "vm/uninit.h"
@@ -46,6 +53,9 @@ struct page {
 	struct frame *frame;   /* Back reference for frame */
 
 	/* Your implementation */
+	struct hash_elem spt_elem; //보조 페이지 테이블(해시)에 들어갈 원소 spt_elem
+	bool has_permission; //읽기,쓰기 권한이 있는지를 보여주는 bool 변수
+	enum page_status status; //현재 어느 공간에 저장되어 있는지를 나타내는 변수 status
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
@@ -85,6 +95,7 @@ struct page_operations {
  * We don't want to force you to obey any specific design for this struct.
  * All designs up to you for this. */
 struct supplemental_page_table {
+	struct hash hash_table;
 };
 
 #include "threads/thread.h"
