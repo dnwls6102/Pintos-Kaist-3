@@ -3,6 +3,7 @@
 #include "threads/malloc.h"
 #include "vm/vm.h"
 #include "vm/inspect.h"
+#include "threads/vaddr.h"
 
 /* 보조 페이지 테이블 : 각각의 페이지에 대하여
    현재 페이지가 어느 곳에 저장되어 있는지(frame==물리 메모리에 있는지? disk==파일, 디스크에 있는지? swap==디스크의 스왑 영역에 있는지?)
@@ -74,11 +75,17 @@ err:
 /* Supplemental Page Table 구현을 위해 작성 */
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
-	struct page *page = NULL;
+	struct page *page = (struct page*)malloc(sizeof(struct page));
 	/* TODO: Fill this function. */
+	//pg_round_down으로 넘겨받은 va를 포함한 page의 시작 주소 찾기
+	page -> va = pg_round_down(va);
+	//spt_elem이 초기화되지 않았는데 
+	struct hash_elem* temp_elem = hash_find(&spt -> hash_table, &page -> spt_elem);
+	free(page);
+	if (temp_elem == NULL)
+		return NULL;
 
-
-	return page;
+	return hash_entry(temp_elem, struct page, spt_elem);
 }
 
 /* Insert PAGE into spt with validation. */
@@ -131,10 +138,12 @@ vm_evict_frame (void) {
 /* Frame Management 구현을 위해 작성 */
 static struct frame *
 vm_get_frame (void) {
-	struct frame *frame = NULL;
-	/* TODO: Fill this function. */
-
+	//frame 공간 할당
+	struct frame *frame = (struct frame*)malloc(sizeof(struct frame));
 	ASSERT (frame != NULL);
+	/* TODO: Fill this function. */
+	frame -> kva = palloc_get_page(PAL_USER | PAL_ZERO);
+	frame -> page = NULL;
 	ASSERT (frame->page == NULL);
 	return frame;
 }
@@ -176,8 +185,11 @@ vm_dealloc_page (struct page *page) {
 /* Frame Management 구현을 위해 작성 */
 bool
 vm_claim_page (void *va UNUSED) {
-	struct page *page = NULL;
+	//사용자 공간 page 할당
+	struct page *page = spt_find_page(&thread_current() -> spt, va);
 	/* TODO: Fill this function */
+	if (page == NULL)
+		return false;
 
 	return vm_do_claim_page (page);
 }
@@ -199,6 +211,8 @@ vm_do_claim_page (struct page *page) {
 	page->frame = frame;
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
+	if(pml4_set_page(thread_current() -> pml4, page -> va, frame -> kva, page -> has_permission) == false)
+		return false;
 
 	return swap_in (page, frame->kva);
 }
