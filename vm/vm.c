@@ -4,6 +4,15 @@
 #include "vm/vm.h"
 #include "vm/inspect.h"
 
+/* 보조 페이지 테이블 : 각각의 페이지에 대하여
+   현재 페이지가 어느 곳에 저장되어 있는지(frame==물리 메모리에 있는지? disk==파일, 디스크에 있는지? swap==디스크의 스왑 영역에 있는지?)
+   이에 대응하는 커널 가상주소를 가리키는 포인터 정보(GPT에 따르면 커널은 물리 메모리와 직접적으로 매핑된 주소를 가진다고 함)
+   활성화가 되어있는지 안되어 있는지 등의 보조적 정보를 저장하는 자료구조
+*/
+/*
+	Page Table을 관리하는 함수들 : threads/mmu.c에 구현되어 있음
+*/
+
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
 void
@@ -61,6 +70,8 @@ err:
 }
 
 /* Find VA from spt and return page. On error, return NULL. */
+/* 매개변수로 넘겨받은 VA(가상 메모리 주소)와 대응되는 page를 (매개변수로 받은 supplemental page table에서) 찾아오는 함수*/
+/* Supplemental Page Table 구현을 위해 작성 */
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct page *page = NULL;
@@ -70,6 +81,8 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 }
 
 /* Insert PAGE into spt with validation. */
+/* 매개변수로 넘겨받은 page를, 매개변수로 넘겨받은 supplemental_page_table spt로 삽입하는 함수*/
+/* Supplemental Page Table 구현을 위해 작성 */
 bool
 spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
@@ -108,6 +121,10 @@ vm_evict_frame (void) {
  * and return it. This always return valid address. That is, if the user pool
  * memory is full, this function evicts the frame to get the available memory
  * space.*/
+/* palloc_get_page()를 통해 user pool에서 새로운 물리 메모리 페이지를 가져오고 프레임도 할당해주는 함수
+   이 함수를 구현했다면, 이후에는 유저공간에 페이지를 할당할 때 이 함수를 사용해야 함
+*/
+/* Frame Management 구현을 위해 작성 */
 static struct frame *
 vm_get_frame (void) {
 	struct frame *frame = NULL;
@@ -149,6 +166,10 @@ vm_dealloc_page (struct page *page) {
 }
 
 /* Claim the page that allocate on VA. */
+/* 가상 주소를 할당하기 위해 page를 요청하는 함수
+   먼저 page를 얻은 후 그 page를 vm_do_claim_page에 넘겨줘야 할거임
+*/
+/* Frame Management 구현을 위해 작성 */
 bool
 vm_claim_page (void *va UNUSED) {
 	struct page *page = NULL;
@@ -158,6 +179,13 @@ vm_claim_page (void *va UNUSED) {
 }
 
 /* Claim the PAGE and set up the mmu. */
+/* Frame(물리 공간 page)를 요청하는 함수
+   먼저 vm_get_frame()으로 frame을 받은 후
+   가상 주소 page와 frame을 서로 연결(주석 Set Links 부분에 구현이 되어있음)
+   Page Table에 방금 연결한 정보를 추가해야 함
+   return value는 작업이 성공 했는지 못했는지를 반환해야 함
+*/
+/* Frame Management 구현을 위해 작성 */
 static bool
 vm_do_claim_page (struct page *page) {
 	struct frame *frame = vm_get_frame ();
@@ -172,6 +200,8 @@ vm_do_claim_page (struct page *page) {
 }
 
 /* Initialize new supplemental page table */
+/* 새로운 Supplemental Page Table을 생성*/
+/* Supplemental Page Table 구현을 위해 작성 */
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
 }
