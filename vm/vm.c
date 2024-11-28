@@ -50,6 +50,10 @@ static struct frame *vm_evict_frame (void);
 /* Create the pending page object with initializer. If you want to create a
  * page, do not create it directly and make it through this function or
  * `vm_alloc_page`. */
+/*
+	페이지 종류에 따라서 다른 initialize 함수를 불러와야 함
+	upage == kernel virtual address ?
+*/
 bool
 vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		vm_initializer *init, void *aux) {
@@ -59,13 +63,44 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 	struct supplemental_page_table *spt = &thread_current ()->spt;
 
 	/* Check wheter the upage is already occupied or not. */
+	//spt에 할당이 안되어 있으면 : 할당하기
+	//할당이 되어 있으면 : false? 아니면 그냥 넘어가기?(추후 재고)
 	if (spt_find_page (spt, upage) == NULL) {
 		/* TODO: Create the page, fetch the initialier according to the VM type,
 		 * TODO: and then create "uninit" page struct by calling uninit_new. You
 		 * TODO: should modify the field after calling the uninit_new. */
 
+		//새로운 page를 만들어주기
+		//vm_get_frame으로 할당하면 안되는 이유: lazy loading을 구현하기 위함
+		//palloc_get_page로도 할당하지 않는 이유: 비슷한 맥락에서, palloc은 물리 메모리를 할당받기에 lazy loading에 부적합
+		//그리고 애초에 넘겨받은 upage가 kernel virtual page인듯?
+		//여기서는 순수 가상 메모리에서만 존재하는 page가 필요한 것
+		struct page* new_page = malloc(sizeof(struct page));
+
+		//VM_TYPE으로 페이지 타입 알아내기
+		if (VM_TYPE(type) == VM_ANON) //익명 페이지면
+		{
+			//uninit_new로 uninit page로 만들기
+			uninit_new(new_page, upage, init, type, aux, anon_initializer);
+		}
+		else if (VM_TYPE(type) == VM_FILE) //파일 페이지면
+		{
+			//uninit_new로 uninit page로 만들기
+			uninit_new(new_page, upage, init, type, aux, file_backed_initializer);
+		}
+		else //그 외 : 지원하지 않는 유형의 페이지
+		{
+			free(new_page);
+			goto err;
+		}
+
 		/* TODO: Insert the page into the spt. */
+		//보조 페이지 테이블에 새로 만든 페이지 삽입 : 실패시 false
+		if(!spt_insert_page(spt, new_page))
+			goto err;
 	}
+	else	
+		goto err;
 err:
 	return false;
 }
@@ -79,7 +114,7 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	/* TODO: Fill this function. */
 	//pg_round_down으로 넘겨받은 va를 포함한 page의 시작 주소 찾기
 	page -> va = pg_round_down(va);
-	//spt_elem이 초기화되지 않았는데 
+	//(추후 재고)spt_elem이 초기화되지 않았는데 오류가 안일어날까?
 	struct hash_elem* temp_elem = hash_find(&spt -> hash_table, &page -> spt_elem);
 	free(page);
 	if (temp_elem == NULL)
