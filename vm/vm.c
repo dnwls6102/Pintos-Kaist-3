@@ -52,7 +52,6 @@ static struct frame *vm_evict_frame (void);
  * `vm_alloc_page`. */
 /*
 	페이지 종류에 따라서 다른 initialize 함수를 불러와야 함
-	upage == kernel virtual address ?
 */
 bool
 vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
@@ -73,7 +72,6 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		//새로운 page를 만들어주기
 		//vm_get_frame으로 할당하면 안되는 이유: lazy loading을 구현하기 위함
 		//palloc_get_page로도 할당하지 않는 이유: 비슷한 맥락에서, palloc은 물리 메모리를 할당받기에 lazy loading에 부적합
-		//그리고 애초에 넘겨받은 upage가 kernel virtual page인듯?
 		//여기서는 순수 가상 메모리에서만 존재하는 page가 필요한 것
 		struct page* new_page = malloc(sizeof(struct page));
 
@@ -93,6 +91,9 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 			free(new_page);
 			goto err;
 		}
+
+		//페이지에 데이터 작성이 가능한지 여부를 따지는 bool 변수 초기화
+		new_page -> has_permission = writable;
 
 		/* TODO: Insert the page into the spt. */
 		//보조 페이지 테이블에 새로 만든 페이지 삽입 : 실패시 false
@@ -115,6 +116,8 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	//pg_round_down으로 넘겨받은 va를 포함한 page의 시작 주소 찾기
 	page -> va = pg_round_down(va);
 	//(추후 재고)spt_elem이 초기화되지 않았는데 오류가 안일어날까?
+	//오류가 일어나지 않는 이유 : 해시 테이블은 어차피 va값만 참고를 함
+	//다른 멤버의 값은 초기화되지 않아도 문제가 없음
 	struct hash_elem* temp_elem = hash_find(&spt -> hash_table, &page -> spt_elem);
 	free(page);
 	if (temp_elem == NULL)

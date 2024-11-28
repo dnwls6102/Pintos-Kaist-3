@@ -797,6 +797,8 @@ lazy_load_segment (struct page *page, void *aux) {
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
+	
+	//load_segment를 구현하면 됨
 }
 
 /* Loads a segment starting at offset OFS in FILE at address
@@ -828,10 +830,27 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
-		void *aux = NULL;
+		//aux? 보조 데이터(auxiliary data)를 의미함
+		//매개변수에서 요구하는 aux의 자료형 : void 포인터
+		//그러니까 그냥 내가 자료형 아무거나 선언해서 전달해도 무방함
+		struct aux_for_lazy_load *aux = (struct aux_for_lazy_load*)malloc(sizeof(struct aux_for_lazy_load));
+		
+		//aux 공간 할당 실패 시 : return false
+		if (aux == NULL)
+			return false;
+
+		//aux 멤버 초기화
+		aux -> file = file;
+		aux -> ofs = ofs;
+		aux -> page_read_bytes = page_read_bytes;
+		aux -> page_zero_bytes = page_zero_bytes;
+
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
 					writable, lazy_load_segment, aux))
+		{
+			free(aux);
 			return false;
+		}
 
 		/* Advance. */
 		read_bytes -= page_read_bytes;

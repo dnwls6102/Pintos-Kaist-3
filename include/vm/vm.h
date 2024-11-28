@@ -86,6 +86,14 @@ struct page_operations {
 	enum vm_type type;
 };
 
+/* lazy_load_segment를 위한 aux 구조체 */
+struct aux_for_lazy_load {
+	struct file* file; //파일 포인터
+	off_t ofs; //오프셋
+	size_t page_read_bytes; //페이지에서 읽을 바이트 크기
+	size_t page_zero_bytes; //0으로 초기화할 바이트 크기
+};
+
 #define swap_in(page, v) (page)->operations->swap_in ((page), v)
 #define swap_out(page) (page)->operations->swap_out (page)
 #define destroy(page) \
