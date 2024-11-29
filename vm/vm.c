@@ -94,6 +94,8 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 
 		//페이지에 데이터 작성이 가능한지 여부를 따지는 bool 변수 초기화
 		new_page -> has_permission = writable;
+		//stack page인지 : false
+		new_page -> is_stack = false;
 
 		/* TODO: Insert the page into the spt. */
 		//보조 페이지 테이블에 새로 만든 페이지 삽입 : 실패시 false
@@ -251,8 +253,9 @@ vm_do_claim_page (struct page *page) {
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
 	if(pml4_set_page(thread_current() -> pml4, page -> va, frame -> kva, page -> has_permission) == false)
 		return false;
-
-	return swap_in (page, frame->kva);
+	else
+		return true;
+	//return swap_in (page, frame->kva);
 }
 
 /* Initialize new supplemental page table */

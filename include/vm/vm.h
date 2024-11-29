@@ -18,7 +18,7 @@ enum vm_type {
 
 	/* Auxillary bit flag marker for store information. You can add more
 	 * markers, until the value is fit in the int. */
-	VM_MARKER_0 = (1 << 3),
+	VM_MARKER_0 = (1 << 3), //For User Stack
 	VM_MARKER_1 = (1 << 4),
 
 	/* DO NOT EXCEED THIS VALUE. */
@@ -56,6 +56,7 @@ struct page {
 	struct hash_elem spt_elem; //보조 페이지 테이블(해시)에 들어갈 원소 spt_elem
 	bool has_permission; //읽기,쓰기 권한이 있는지를 보여주는 bool 변수
 	enum page_status status; //현재 어느 공간에 저장되어 있는지를 나타내는 변수 status
+	bool is_stack; //스택 전용 페이지인지
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */

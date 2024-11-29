@@ -799,6 +799,45 @@ lazy_load_segment (struct page *page, void *aux) {
 	/* TODO: VA is available when calling this function. */
 	
 	//load_segment를 구현하면 됨
+
+	//우선 프레임을 얻은 후
+	//매개변수로 받은 page와 연결시켜야 함
+	//vm_get_frame()으로 frame을 얻을 수 있음
+
+	struct frame* new_frame = vm_get_frame();
+
+	//frame과 page 연결시키기
+	new_frame -> page = page;
+	page -> frame = new_frame;
+
+	//aux로 받은 정보 구조체로 받아오기
+	struct aux_for_lazy_load *temp = (struct aux_for_lazy_load *)aux;
+
+	//파일 로드
+	file_seek(temp -> file, temp -> ofs);
+
+	//페이지 로드
+	if(file_read(temp -> file, page -> frame -> kva, temp -> page_read_bytes) != (int)temp -> page_read_bytes)
+	{
+		//프레임 해제, 페이지는 해제하면 안됨
+		free(new_frame);
+		return false;
+	}
+
+	//데이터를 쓰고 남은 부분을 0으로 초기화
+	memset(page -> frame -> kva + temp -> page_read_bytes, 0, temp -> page_zero_bytes);
+
+	//install_page를 통해 pml4에 page 및 프레임 매핑 정보 등록
+	if(!install_page(page -> va, page -> frame -> kva, page -> has_permission))
+	{
+		printf("install_page() failed\n");
+		//프레임 해제, 페이지는 해제하면 안됨
+		free(new_frame);
+		return false;
+	}
+
+	return true;
+
 }
 
 /* Loads a segment starting at offset OFS in FILE at address
@@ -863,7 +902,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a PAGE of stack at the USER_STACK. Return true on success. */
 static bool
 setup_stack (struct intr_frame *if_) {
-	bool success = false;
+	
 	void *stack_bottom = (void *) (((uint8_t *) USER_STACK) - PGSIZE);
 
 	/* TODO: Map the stack on stack_bottom and claim the page immediately.
@@ -871,7 +910,34 @@ setup_stack (struct intr_frame *if_) {
 	 * TODO: You should mark the page is stack. */
 	/* TODO: Your code goes here */
 
-	return success;
+	//이미 스택의 가상 주소는 USER_STACK으로 할당이 된 상태임
+	//page를 할당시켜 va에 USER_STACK 넣기
+	//나머지 멤버들도 초기화
+	struct page* stack_page = (struct page *)malloc(sizeof(struct page));
+	//malloc 할당 실패하면 : false
+	if (stack_page == NULL)
+		return false;
+	stack_page -> va = stack_bottom;
+	stack_page -> has_permission = true;
+	stack_page -> status = MEMORY;
+
+	//메모리에만 존재하니 Anon Initializer로 초기화
+	anon_initializer(stack_page, VM_ANON, NULL);
+
+	//vm_do_claim_page로 pml4 페이지 테이블에 매핑 정보 등록
+	//실패시 false 반환
+	if (!vm_do_claim_page(stack_page))
+	{
+		free(stack_page);
+		return false;
+	}
+	
+	//rsp 레지스터에 USER_STACK 주소 등록
+	if_ -> rsp = USER_STACK;
+	//is_stack 플래그 세우기
+	stack_page -> is_stack = true;
+
+	return true;
 }
 #endif /* VM */
 
