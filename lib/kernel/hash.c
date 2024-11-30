@@ -408,5 +408,5 @@ bool less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux)
 	const struct page* temp_a = hash_entry(a, struct page, spt_elem);
 	const struct page* temp_b = hash_entry(b, struct page, spt_elem);
 
-	return temp_a -> va < temp_b -> va
+	return temp_a -> va < temp_b -> va;
 }

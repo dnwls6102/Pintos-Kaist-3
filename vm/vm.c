@@ -56,7 +56,6 @@ static struct frame *vm_evict_frame (void);
 bool
 vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		vm_initializer *init, void *aux) {
-
 	ASSERT (VM_TYPE(type) != VM_UNINIT)
 
 	struct supplemental_page_table *spt = &thread_current ()->spt;
@@ -91,12 +90,11 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 			free(new_page);
 			goto err;
 		}
-
+		
 		//페이지에 데이터 작성이 가능한지 여부를 따지는 bool 변수 초기화
 		new_page -> has_permission = writable;
 		//stack page인지 : false
 		new_page -> is_stack = false;
-
 		/* TODO: Insert the page into the spt. */
 		//보조 페이지 테이블에 새로 만든 페이지 삽입 : 실패시 false
 		if(!spt_insert_page(spt, new_page))
@@ -104,6 +102,8 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 	}
 	else	
 		goto err;
+
+	return true;
 err:
 	return false;
 }
@@ -207,6 +207,14 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
 
+	//일단 주어진 주소를 토대로 spt에서 page를 찾기
+	//만약 spt에서 page를 찾지 못했다 : 진짜 fault
+	page = spt_find_page(spt, addr);
+
+	if (addr == NULL || is_kernel_vaddr(addr))
+		return false;
+
+	//spt에서 page 정보를 복원한 경우 : 물리 메모리와 연결
 	return vm_do_claim_page (page);
 }
 
@@ -253,9 +261,9 @@ vm_do_claim_page (struct page *page) {
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
 	if(pml4_set_page(thread_current() -> pml4, page -> va, frame -> kva, page -> has_permission) == false)
 		return false;
-	else
-		return true;
-	//return swap_in (page, frame->kva);
+	// else
+	// 	return true;
+	return swap_in (page, frame->kva);
 }
 
 /* Initialize new supplemental page table */

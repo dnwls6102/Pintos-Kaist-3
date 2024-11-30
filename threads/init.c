@@ -119,6 +119,7 @@ main (void) {
 	printf ("Boot complete.\n");
 
 	/* Run actions specified on kernel command line. */
+	//printf("%s\n%s\n",argv[0],argv[1]);
 	run_actions (argv);
 
 	/* Finish up. */
@@ -237,6 +238,7 @@ parse_options (char **argv) {
 /* Runs the task specified in ARGV[1]. */
 static void
 run_task (char **argv) {
+	// printf("%s\n%s\n",argv[0], argv[1]);
 	const char *task = argv[1];
 
 	printf ("Executing '%s':\n", task);
@@ -264,6 +266,7 @@ run_actions (char **argv) {
 		int argc;                         /* # of args, including action name. */
 		void (*function) (char **argv);   /* Function to execute action. */
 	};
+	// printf("%s\n%s\n",argv[0],argv[1]);
 
 	/* Table of supported actions. */
 	static const struct action actions[] = {

@@ -18,9 +18,8 @@
 #include "threads/mmu.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
-#ifdef VM
 #include "vm/vm.h"
-#endif
+#include "vm/uninit.h"
 
 static void process_cleanup (void);
 static bool load (const char *file_name, struct intr_frame *if_);
@@ -313,7 +312,6 @@ process_exec (void *f_name) {
 	char *temp, *save_ptr; //argv에 저장할 문자열 temp, strtok_r 함수를 사용하는 데에 필요한 문자열 save_ptr
 	char* argv[64]; //커맨드라인 받아낼 array argv
 	int argc = 0;
-
 	/*Project 2 : Command Line Parsing*/
 
 	/*strtok_r(char *str, const char *delim, char **saveptr)함수
@@ -561,7 +559,7 @@ load (const char *file_name, struct intr_frame *if_) {
 		printf ("load: %s: error loading executable\n", file_name);
 		goto done;
 	}
-
+	
 	/* Read program headers. */
 	file_ofs = ehdr.e_phoff;
 	for (i = 0; i < ehdr.e_phnum; i++) {
@@ -614,10 +612,14 @@ load (const char *file_name, struct intr_frame *if_) {
 				break;
 		}
 	}
-
+	
 	/* Set up stack. */
 	if (!setup_stack (if_))
+	{
+		printf("STACK FAIL\n");
 		goto done;
+	}
+		// goto done;
 	//현재 프로세스에 실행중인 파일 등록
 	t -> running_file = file;
 	//실행 중인 파일에 write할 수 없도록 deny하기
@@ -686,6 +688,25 @@ validate_segment (const struct Phdr *phdr, struct file *file) {
 
 	/* It's okay. */
 	return true;
+}
+
+/* Adds a mapping from user virtual address UPAGE to kernel
+ * virtual address KPAGE to the page table.
+ * If WRITABLE is true, the user process may modify the page;
+ * otherwise, it is read-only.
+ * UPAGE must not already be mapped.
+ * KPAGE should probably be a page obtained from the user pool
+ * with palloc_get_page().
+ * Returns true on success, false if UPAGE is already mapped or
+ * if memory allocation fails. */
+static bool
+install_page (void *upage, void *kpage, bool writable) {
+	struct thread *t = thread_current ();
+
+	/* Verify that there's not already a page at that virtual
+	 * address, then map our page there. */
+	return (pml4_get_page (t->pml4, upage) == NULL
+			&& pml4_set_page (t->pml4, upage, kpage, writable));
 }
 
 #ifndef VM
@@ -769,24 +790,6 @@ setup_stack (struct intr_frame *if_) {
 	return success;
 }
 
-/* Adds a mapping from user virtual address UPAGE to kernel
- * virtual address KPAGE to the page table.
- * If WRITABLE is true, the user process may modify the page;
- * otherwise, it is read-only.
- * UPAGE must not already be mapped.
- * KPAGE should probably be a page obtained from the user pool
- * with palloc_get_page().
- * Returns true on success, false if UPAGE is already mapped or
- * if memory allocation fails. */
-static bool
-install_page (void *upage, void *kpage, bool writable) {
-	struct thread *t = thread_current ();
-
-	/* Verify that there's not already a page at that virtual
-	 * address, then map our page there. */
-	return (pml4_get_page (t->pml4, upage) == NULL
-			&& pml4_set_page (t->pml4, upage, kpage, writable));
-}
 #else
 /* From here, codes will be used after project 3.
  * If you want to implement the function for only project 2, implement it on the
@@ -800,16 +803,6 @@ lazy_load_segment (struct page *page, void *aux) {
 	
 	//load_segment를 구현하면 됨
 
-	//우선 프레임을 얻은 후
-	//매개변수로 받은 page와 연결시켜야 함
-	//vm_get_frame()으로 frame을 얻을 수 있음
-
-	struct frame* new_frame = vm_get_frame();
-
-	//frame과 page 연결시키기
-	new_frame -> page = page;
-	page -> frame = new_frame;
-
 	//aux로 받은 정보 구조체로 받아오기
 	struct aux_for_lazy_load *temp = (struct aux_for_lazy_load *)aux;
 
@@ -820,21 +813,12 @@ lazy_load_segment (struct page *page, void *aux) {
 	if(file_read(temp -> file, page -> frame -> kva, temp -> page_read_bytes) != (int)temp -> page_read_bytes)
 	{
 		//프레임 해제, 페이지는 해제하면 안됨
-		free(new_frame);
+		palloc_free_page(page -> frame -> kva);
 		return false;
 	}
 
 	//데이터를 쓰고 남은 부분을 0으로 초기화
 	memset(page -> frame -> kva + temp -> page_read_bytes, 0, temp -> page_zero_bytes);
-
-	//install_page를 통해 pml4에 page 및 프레임 매핑 정보 등록
-	if(!install_page(page -> va, page -> frame -> kva, page -> has_permission))
-	{
-		printf("install_page() failed\n");
-		//프레임 해제, 페이지는 해제하면 안됨
-		free(new_frame);
-		return false;
-	}
 
 	return true;
 
@@ -895,6 +879,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
 		upage += PGSIZE;
+		ofs += page_read_bytes;
 	}
 	return true;
 }
@@ -902,7 +887,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a PAGE of stack at the USER_STACK. Return true on success. */
 static bool
 setup_stack (struct intr_frame *if_) {
-	
+	bool success = false;
 	void *stack_bottom = (void *) (((uint8_t *) USER_STACK) - PGSIZE);
 
 	/* TODO: Map the stack on stack_bottom and claim the page immediately.
@@ -910,23 +895,29 @@ setup_stack (struct intr_frame *if_) {
 	 * TODO: You should mark the page is stack. */
 	/* TODO: Your code goes here */
 
-	//이미 스택의 가상 주소는 USER_STACK으로 할당이 된 상태임
-	//page를 할당시켜 va에 USER_STACK 넣기
-	//나머지 멤버들도 초기화
+	// 이미 스택의 가상 주소는 USER_STACK으로 할당이 된 상태임
+	// page를 할당시켜 va에 USER_STACK 넣기
+	// 나머지 멤버들도 초기화
 	struct page* stack_page = (struct page *)malloc(sizeof(struct page));
 	//malloc 할당 실패하면 : false
 	if (stack_page == NULL)
 		return false;
-	stack_page -> va = stack_bottom;
+	uninit_new(stack_page, stack_bottom, NULL, VM_ANON | VM_MARKER_0, NULL, anon_initializer);
+	// stack_page -> va = stack_bottom;
 	stack_page -> has_permission = true;
 	stack_page -> status = MEMORY;
 
 	//메모리에만 존재하니 Anon Initializer로 초기화
-	anon_initializer(stack_page, VM_ANON, NULL);
+	// anon_initializer(stack_page, VM_ANON, NULL);
 
-	//vm_do_claim_page로 pml4 페이지 테이블에 매핑 정보 등록
+	//initd() 실행 실패 오류 해결:
+	//현재 프로세스의 spt에도 삽입
+	spt_insert_page(&thread_current() -> spt, stack_page);
+
+	//vm_claim_page로 pml4 페이지 테이블에 매핑 정보 등록
 	//실패시 false 반환
-	if (!vm_do_claim_page(stack_page))
+	//매개변수에 올바른 인자 넣기 : stack_page가 아닌 stack_page -> va 삽입
+	if (!vm_claim_page(stack_page -> va))
 	{
 		free(stack_page);
 		return false;
@@ -938,6 +929,24 @@ setup_stack (struct intr_frame *if_) {
 	stack_page -> is_stack = true;
 
 	return true;
+	// bool success = false;
+    // void *stack_bottom = (void *)(((uint8_t *)USER_STACK) - PGSIZE);
+
+    // /* TODO: Map the stack on stack_bottom and claim the page immediately.
+    //  * TODO: If success, set the rsp accordingly.
+    //  * TODO: You should mark the page is stack. */
+    // /* TODO: Your code goes here */
+    // if (vm_alloc_page_with_initializer(VM_ANON | VM_MARKER_0, stack_bottom, 1, NULL, NULL)) {  // MARKER_0로 STACK에 있는 것을 표시
+    //     success = vm_claim_page(stack_bottom);
+
+    //     if (success) {
+    //         if_->rsp = USER_STACK;
+    //         //thread_current()->stack_bottom = stack_bottom;
+    //     }
+    // }
+
+    // return success;
+
 }
 #endif /* VM */
 
