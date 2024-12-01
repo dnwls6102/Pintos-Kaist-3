@@ -32,6 +32,8 @@ anon_initializer (struct page *page, enum vm_type type, void *kva) {
 	page -> status = MEMORY; //Anon Page는 메모리에서만 존재, 이거 설정하면 속도?(추후 재고)
 
 	struct anon_page *anon_page = &page->anon;
+
+	return true;
 }
 
 /* Swap in the page by read contents from the swap disk. */

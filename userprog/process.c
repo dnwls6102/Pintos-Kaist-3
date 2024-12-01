@@ -902,6 +902,9 @@ setup_stack (struct intr_frame *if_) {
 	//malloc 할당 실패하면 : false
 	if (stack_page == NULL)
 		return false;
+	//#GP 오류 해결 : stack 전용 페이지를 할당하려면 uninit_new를 통해
+	//swap_in 멤버로 uninit_initializer로 등록해야 함
+	//이유는 명확하지 않음. 다만 하지 않으면 일부 레지스터(특히 rdx, rip)에 이상한 값이 들어감
 	uninit_new(stack_page, stack_bottom, NULL, VM_ANON | VM_MARKER_0, NULL, anon_initializer);
 	// stack_page -> va = stack_bottom;
 	stack_page -> has_permission = true;

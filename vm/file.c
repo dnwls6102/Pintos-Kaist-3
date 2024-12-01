@@ -27,6 +27,15 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 	page -> status = FILE; //(추후 재고)
 
 	struct file_page *file_page = &page->file;
+
+	//uninit.aux => spt table copy에서 vm_alloc_page_with_initializer의 &temp_page -> file을 통해 전달됨
+	//aux_for_lazy_load는 file_page 구조체와 동일
+	struct aux_for_lazy_load* temp_aux = (struct aux_for_lazy_load *) page -> uninit.aux;
+	
+	file_page -> file = temp_aux -> file;
+	file_page -> ofs = temp_aux -> ofs;
+	file_page -> page_read_bytes = temp_aux -> page_read_bytes;
+	file_page -> page_zero_bytes = temp_aux -> page_zero_bytes;
 }
 
 /* Swap in the page by read contents from the file. */
