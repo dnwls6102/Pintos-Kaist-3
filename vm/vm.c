@@ -290,75 +290,111 @@ bool
 supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 		struct supplemental_page_table *src UNUSED) {
 
-	//hash 자료구조 순회용 자료형 hash_iterator 변수 선언
+	// //hash 자료구조 순회용 자료형 hash_iterator 변수 선언
+	// struct hash_iterator i;
+	// //file backed page인 경우 물리 메모리도 같이 얻어와야 함
+	// struct page* dst_page;
+
+	// hash_first (&i, &src -> hash_table);
+
+	// //src에 들어가 있는 spt_elem들을 모두 순회
+	// while (hash_next(&i))
+	// {
+	// 	//hash_entry로 page 구조체 복원 후 dst에 hash_insert
+	// 	struct page* temp_page = hash_entry(hash_cur(&i), struct page, spt_elem);
+	// 	enum vm_type type = temp_page -> operations -> type;
+	// 	void* upage = temp_page -> va;
+	// 	// printf("va : %p\n", temp_page -> va);
+	// 	bool writable = temp_page -> has_permission;
+
+	// 	switch(type)
+	// 	{
+	// 		//부모 프로세스의 ANON 페이지 : 그냥 다시 UNINIT 페이지로 만들어주기
+	// 		//자식 프로세스가 이 페이지를 참조하게 되면 페이지 폴트가 날 것이고, 자연스럽게 물리 메모리와 매핑됨
+	// 		//만약 COW를 구현하기 위해서는 추가로 temp_page -> frame -> kva와 매핑해줘야 함
+	// 		case VM_ANON:
+	// 			if(!vm_alloc_page(type, upage, writable))
+	// 				return false;
+	// 			break;
+
+	// 		//부모 프로세스의 FILE_BACKED 페이지 : 자식 프로세스의 spt에 추가해주는 것은 물론
+	// 		//물리 메모리와 가상 메모리 페이지와도 연결해줘야 함
+
+	// 		case VM_FILE:
+	// 			//가상 메모리 할당 후
+	// 			//aux 매개변수로 원본 페이지의 file 정보를 전달
+	// 			if(!vm_alloc_page_with_initializer(type, upage, writable, NULL, &temp_page -> file))
+	// 				return false;
+				
+	// 			//자식 프로세스의 spt에서 방금 넣은 페이지 찾아오기
+	// 			dst_page = spt_find_page(dst, upage);
+	// 			//file 정보 설정해주기
+	// 			if (!file_backed_initializer(dst_page, type, NULL))
+	// 				return false;
+				
+	// 			//자식 프로세스의 page에 원본 page의 frame 정보 저장
+	// 			dst_page -> frame = temp_page -> frame;
+	// 			//link 설정
+	// 			dst_page -> frame -> page = dst_page;
+
+	// 			//page와 frame간의 매핑 정보 pml4에 등록
+	// 			if(!pml4_set_page(thread_current() -> pml4, dst_page -> va, dst_page -> frame -> kva, dst_page -> has_permission))
+	// 				return false;
+
+	// 			break;
+
+	// 		//부모 프로세스의 UNINIT 페이지 : UNINIT 상태로 유지
+	// 		//단, 해당 페이지가 갖고 있는 모든 정보를 동일하게 가지고 와야 함
+	// 		case VM_UNINIT:
+	// 			//Kernel panic in run: PANIC at ../../vm/vm.c:59 in vm_alloc_page_with_initializer(): assertion `VM_TYPE(type) != VM_UNINIT' failed. 해결
+	// 			//vm_alloc_page_with_initializer의 첫 번째 인자로 그냥 type을 넘겨버리게 된다면
+	// 			//ASSERT(VM_TYPE(type) != VM_UNINIT)에 걸리고 만다
+	// 			//원본 page의 operations.type을 가져오는 page_get_type함수를 활용해야 한다
+	// 			if(!vm_alloc_page_with_initializer(page_get_type(temp_page), upage, writable, temp_page -> uninit.init, temp_page -> uninit.aux))
+	// 				return false;
+	// 			break;
+
+	// 		default:
+	// 			return false;
+	// 	}
+
+	// }
+	// return true;
+
 	struct hash_iterator i;
-	//file backed page인 경우 물리 메모리도 같이 얻어와야 함
-	struct page* dst_page;
+    hash_first(&i, &src->hash_table);
+    while (hash_next(&i))
+    {
+        // src_page 정보
+        struct page *src_page = hash_entry(hash_cur(&i), struct page, spt_elem);
+        enum vm_type type = src_page->operations->type;
+        void *upage = src_page->va;
+        bool writable = src_page->has_permission;
 
-	hash_first (&i, &src -> hash_table);
+        /* 1) type이 uninit이면 */
+        if (type == VM_UNINIT)
+        { // uninit page 생성 & 초기화
+            vm_initializer *init = src_page->uninit.init;
+            void *aux = src_page->uninit.aux;
+            vm_alloc_page_with_initializer(VM_ANON, upage, writable, init, aux);
+            continue;
+        }
 
-	//src에 들어가 있는 spt_elem들을 모두 순회
-	while (hash_next(&i))
-	{
-		//hash_entry로 page 구조체 복원 후 dst에 hash_insert
-		struct page* temp_page = hash_entry(hash_cur(&i), struct page, spt_elem);
-		enum vm_type type = temp_page -> operations -> type;
-		void* upage = temp_page -> va;
-		bool writable = temp_page -> has_permission;
+        /* 2) type이 uninit이 아니면 */
+        if (!vm_alloc_page(type, upage, writable)) // uninit page 생성 & 초기화
+            // init이랑 aux는 Lazy Loading에 필요함
+            // 지금 만드는 페이지는 기다리지 않고 바로 내용을 넣어줄 것이므로 필요 없음
+            return false;
 
-		switch(type)
-		{
-			//부모 프로세스의 ANON 페이지 : 그냥 다시 UNINIT 페이지로 만들어주기
-			//자식 프로세스가 이 페이지를 참조하게 되면 페이지 폴트가 날 것이고, 자연스럽게 물리 메모리와 매핑됨
-			//만약 COW를 구현하기 위해서는 추가로 temp_page -> frame -> kva와 매핑해줘야 함
-			case VM_ANON:
-				if(!vm_alloc_page(type, upage, writable))
-					return false;
-				break;
+        // vm_claim_page으로 요청해서 매핑 & 페이지 타입에 맞게 초기화
+        if (!vm_claim_page(upage))
+            return false;
 
-			//부모 프로세스의 FILE_BACKED 페이지 : 자식 프로세스의 spt에 추가해주는 것은 물론
-			//물리 메모리와 가상 메모리 페이지와도 연결해줘야 함
-
-			case VM_FILE:
-				//가상 메모리 할당 후
-				//aux 매개변수로 원본 페이지의 file 정보를 전달
-				if(!vm_alloc_page_with_initializer(type, upage, writable, NULL, &temp_page -> file))
-					return false;
-				
-				//자식 프로세스의 spt에서 방금 넣은 페이지 찾아오기
-				dst_page = spt_find_page(dst, upage);
-				//file 정보 설정해주기
-				if (!file_backed_initializer(dst_page, type, NULL))
-					return false;
-				
-				//자식 프로세스의 page에 원본 page의 frame 정보 저장
-				dst_page -> frame = temp_page -> frame;
-				//link 설정
-				dst_page -> frame -> page = dst_page;
-
-				//page와 frame간의 매핑 정보 pml4에 등록
-				if(!pml4_set_page(thread_current() -> pml4, dst_page -> va, dst_page -> frame -> kva, dst_page -> has_permission))
-					return false;
-
-				break;
-
-			//부모 프로세스의 UNINIT 페이지 : UNINIT 상태로 유지
-			//단, 해당 페이지가 갖고 있는 모든 정보를 동일하게 가지고 와야 함
-			case VM_UNINIT:
-				//Kernel panic in run: PANIC at ../../vm/vm.c:59 in vm_alloc_page_with_initializer(): assertion `VM_TYPE(type) != VM_UNINIT' failed. 해결
-				//vm_alloc_page_with_initializer의 첫 번째 인자로 그냥 type을 넘겨버리게 된다면
-				//ASSERT(VM_TYPE(type) != VM_UNINIT)에 걸리고 만다
-				//원본 page의 operations.type을 가져오는 page_get_type함수를 활용해야 한다
-				if(!vm_alloc_page_with_initializer(page_get_type(temp_page), upage, writable, temp_page -> uninit.init, temp_page -> uninit.aux))
-					return false;
-				break;
-
-			default:
-				return false;
-		}
-
-	}
-	return true;
+        // 매핑된 프레임에 내용 로딩
+        struct page *dst_page = spt_find_page(dst, upage);
+        memcpy(dst_page->frame->kva, src_page->frame->kva, PGSIZE);
+    }
+    return true;
 
 }
 

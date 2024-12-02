@@ -159,6 +159,7 @@ void check_address(void * address)
 }
 #endif
 
+#ifdef VM
 struct page* check_address(void * address)
 {
 	struct thread * current_t = thread_current();
@@ -167,11 +168,12 @@ struct page* check_address(void * address)
 
 	if (is_kernel_vaddr(address) || address == NULL)
 	{
-		exit(-1);
+		exit(-11);
 	}
 
 	return spt_find_page(&current_t -> spt, address);
 }
+#endif
 
 //void halt(void) NO_RETURN
 void halt(void)
@@ -219,14 +221,14 @@ int exec(const char *cmd_line)
 	temp_str = palloc_get_page(PAL_ZERO);
 	//palloc으로 페이지 공간을 할당하지 못하면 exit하기
 	if (temp_str == NULL)
-		exit(-1);
+		exit(-12);
 	//cmd_line의 내용을 temp_str로 PGSIZE(페이지 크기)만큼 복사
 	//strcpy를 안쓰고 strlcpy를 쓰는 이유 : string.h에 쓰지 말라고 선언되어 있음
 	strlcpy(temp_str, cmd_line, PGSIZE);
 
 	//process_exec을 실행에 실패하면 exit
 	if(process_exec(temp_str) == -1)
-		exit(-1);
+		exit(-13);
 	
 }
 
