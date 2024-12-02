@@ -64,7 +64,7 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 	//spt에 할당이 안되어 있으면 : 할당하기
 	//할당이 되어 있으면 : false? 아니면 그냥 넘어가기?(추후 재고)
 	if (spt_find_page (spt, upage) == NULL) {
-		/* TODO: Create the page, fetch the initialier according to the VM type,
+		/* TODO: Create the page, fetch the initializer according to the VM type,
 		 * TODO: and then create "uninit" page struct by calling uninit_new. You
 		 * TODO: should modify the field after calling the uninit_new. */
 
