@@ -28,9 +28,14 @@ vm_anon_init (void) {
 bool
 anon_initializer (struct page *page, enum vm_type type, void *kva) {
 	/* Set up the handler */
+	struct uninit_page *uninit = &page -> uninit;
+	memset(uninit, 0, sizeof(struct uninit_page));
+
 	page->operations = &anon_ops;
 
 	struct anon_page *anon_page = &page->anon;
+
+	return true;
 }
 
 /* Swap in the page by read contents from the swap disk. */
@@ -49,4 +54,12 @@ anon_swap_out (struct page *page) {
 static void
 anon_destroy (struct page *page) {
 	struct anon_page *anon_page = &page->anon;
+
+	//pml4 테이블에 있는 매핑 정보를 삭제하고
+	pml4_clear_page(thread_current() -> pml4, page -> va);
+	//frame 할당도 해제하기
+	palloc_free_page(page -> frame -> kva);
+	page -> frame -> page = NULL;
+	free(page -> frame);
+	page -> frame = NULL;
 }
