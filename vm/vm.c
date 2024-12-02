@@ -115,6 +115,7 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	/* TODO: Fill this function. */
 	//pg_round_down으로 넘겨받은 va를 포함한 page의 시작 주소 찾기
 	page -> va = pg_round_down(va);
+	// printf("va : %p, page -> va : %p \n", va, page -> va);
 	//(추후 재고)spt_elem이 초기화되지 않았는데 오류가 안일어날까?
 	//오류가 일어나지 않는 이유 : 해시 테이블은 어차피 va값만 참고를 함
 	//다른 멤버의 값은 초기화되지 않아도 문제가 없음
