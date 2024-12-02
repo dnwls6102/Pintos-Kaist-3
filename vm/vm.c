@@ -72,7 +72,7 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		//vm_get_frame으로 할당하면 안되는 이유: lazy loading을 구현하기 위함
 		//palloc_get_page로도 할당하지 않는 이유: 비슷한 맥락에서, palloc은 물리 메모리를 할당받기에 lazy loading에 부적합
 		//여기서는 순수 가상 메모리에서만 존재하는 page가 필요한 것
-		struct page* new_page = malloc(sizeof(struct page));
+		struct page* new_page = (struct page *)malloc(sizeof(struct page));
 
 		//VM_TYPE으로 페이지 타입 알아내기
 		if (VM_TYPE(type) == VM_ANON) //익명 페이지면
@@ -100,8 +100,6 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		if(!spt_insert_page(spt, new_page))
 			goto err;
 	}
-	else	
-		goto err;
 
 	return true;
 err:
@@ -137,7 +135,7 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 	int succ = false;
 	/* TODO: Fill this function. */
 
-	if (hash_insert(spt, &page -> spt_elem) == NULL)
+	if (hash_insert(&spt -> hash_table, &page -> spt_elem) == NULL)
 		succ = true;
 
 	return succ;

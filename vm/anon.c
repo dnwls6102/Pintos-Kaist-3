@@ -28,6 +28,9 @@ vm_anon_init (void) {
 bool
 anon_initializer (struct page *page, enum vm_type type, void *kva) {
 	/* Set up the handler */
+	struct uninit_page *uninit = &page -> uninit;
+	memset(uninit, 0, sizeof(struct uninit_page));
+
 	page->operations = &anon_ops;
 	page -> status = MEMORY; //Anon Page는 메모리에서만 존재, 이거 설정하면 속도?(추후 재고)
 
