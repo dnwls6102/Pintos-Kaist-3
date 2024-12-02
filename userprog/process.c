@@ -887,68 +887,68 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a PAGE of stack at the USER_STACK. Return true on success. */
 static bool
 setup_stack (struct intr_frame *if_) {
-	bool success = false;
-	void *stack_bottom = (void *) (((uint8_t *) USER_STACK) - PGSIZE);
-
-	/* TODO: Map the stack on stack_bottom and claim the page immediately.
-	 * TODO: If success, set the rsp accordingly.
-	 * TODO: You should mark the page is stack. */
-	/* TODO: Your code goes here */
-
-	// 이미 스택의 가상 주소는 USER_STACK으로 할당이 된 상태임
-	// page를 할당시켜 va에 USER_STACK 넣기
-	// 나머지 멤버들도 초기화
-	struct page* stack_page = (struct page *)malloc(sizeof(struct page));
-	//malloc 할당 실패하면 : false
-	if (stack_page == NULL)
-		return false;
-	//#GP 오류 해결 : stack 전용 페이지를 할당하려면 uninit_new를 통해
-	//swap_in 멤버로 uninit_initializer로 등록해야 함
-	//이유는 명확하지 않음. 다만 하지 않으면 일부 레지스터(특히 rdx, rip)에 이상한 값이 들어감
-	uninit_new(stack_page, stack_bottom, NULL, VM_ANON | VM_MARKER_0, NULL, anon_initializer);
-	// stack_page -> va = stack_bottom;
-	stack_page -> has_permission = true;
-	stack_page -> status = MEMORY;
-
-	//메모리에만 존재하니 Anon Initializer로 초기화
-	// anon_initializer(stack_page, VM_ANON, NULL);
-
-	//initd() 실행 실패 오류 해결:
-	//현재 프로세스의 spt에도 삽입
-	spt_insert_page(&thread_current() -> spt, stack_page);
-
-	//vm_claim_page로 pml4 페이지 테이블에 매핑 정보 등록
-	//실패시 false 반환
-	//매개변수에 올바른 인자 넣기 : stack_page가 아닌 stack_page -> va 삽입
-	if (!vm_claim_page(stack_page -> va))
-	{
-		free(stack_page);
-		return false;
-	}
-	
-	//rsp 레지스터에 USER_STACK 주소 등록
-	if_ -> rsp = USER_STACK;
-	//is_stack 플래그 세우기
-	stack_page -> is_stack = true;
-
-	return true;
 	// bool success = false;
-    // void *stack_bottom = (void *)(((uint8_t *)USER_STACK) - PGSIZE);
+	// void *stack_bottom = (void *) (((uint8_t *) USER_STACK) - PGSIZE);
 
-    // /* TODO: Map the stack on stack_bottom and claim the page immediately.
-    //  * TODO: If success, set the rsp accordingly.
-    //  * TODO: You should mark the page is stack. */
-    // /* TODO: Your code goes here */
-    // if (vm_alloc_page_with_initializer(VM_ANON | VM_MARKER_0, stack_bottom, 1, NULL, NULL)) {  // MARKER_0로 STACK에 있는 것을 표시
-    //     success = vm_claim_page(stack_bottom);
+	// /* TODO: Map the stack on stack_bottom and claim the page immediately.
+	//  * TODO: If success, set the rsp accordingly.
+	//  * TODO: You should mark the page is stack. */
+	// /* TODO: Your code goes here */
 
-    //     if (success) {
-    //         if_->rsp = USER_STACK;
-    //         //thread_current()->stack_bottom = stack_bottom;
-    //     }
-    // }
+	// // 이미 스택의 가상 주소는 USER_STACK으로 할당이 된 상태임
+	// // page를 할당시켜 va에 USER_STACK 넣기
+	// // 나머지 멤버들도 초기화
+	// struct page* stack_page = (struct page *)malloc(sizeof(struct page));
+	// //malloc 할당 실패하면 : false
+	// if (stack_page == NULL)
+	// 	return false;
+	// //#GP 오류 해결 : stack 전용 페이지를 할당하려면 uninit_new를 통해
+	// //swap_in 멤버로 uninit_initializer로 등록해야 함
+	// //이유는 명확하지 않음. 다만 하지 않으면 일부 레지스터(특히 rdx, rip)에 이상한 값이 들어감
+	// uninit_new(stack_page, stack_bottom, NULL, VM_ANON | VM_MARKER_0, NULL, anon_initializer);
+	// // stack_page -> va = stack_bottom;
+	// stack_page -> has_permission = true;
+	// stack_page -> status = MEMORY;
 
-    // return success;
+	// //메모리에만 존재하니 Anon Initializer로 초기화
+	// // anon_initializer(stack_page, VM_ANON, NULL);
+
+	// //initd() 실행 실패 오류 해결:
+	// //현재 프로세스의 spt에도 삽입
+	// spt_insert_page(&thread_current() -> spt, stack_page);
+
+	// //vm_claim_page로 pml4 페이지 테이블에 매핑 정보 등록
+	// //실패시 false 반환
+	// //매개변수에 올바른 인자 넣기 : stack_page가 아닌 stack_page -> va 삽입
+	// if (!vm_claim_page(stack_page -> va))
+	// {
+	// 	free(stack_page);
+	// 	return false;
+	// }
+	
+	// //rsp 레지스터에 USER_STACK 주소 등록
+	// if_ -> rsp = USER_STACK;
+	// //is_stack 플래그 세우기
+	// stack_page -> is_stack = true;
+
+	// return true;
+	bool success = false;
+    void *stack_bottom = (void *)(((uint8_t *)USER_STACK) - PGSIZE);
+
+    /* TODO: Map the stack on stack_bottom and claim the page immediately.
+     * TODO: If success, set the rsp accordingly.
+     * TODO: You should mark the page is stack. */
+    /* TODO: Your code goes here */
+    if (vm_alloc_page_with_initializer(VM_ANON | VM_MARKER_0, stack_bottom, 1, NULL, NULL)) {  // MARKER_0로 STACK에 있는 것을 표시
+        success = vm_claim_page(stack_bottom);
+
+        if (success) {
+            if_->rsp = USER_STACK;
+            //thread_current()->stack_bottom = stack_bottom;
+        }
+    }
+
+    return success;
 
 }
 #endif /* VM */

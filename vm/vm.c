@@ -334,7 +334,11 @@ supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 			//부모 프로세스의 UNINIT 페이지 : UNINIT 상태로 유지
 			//단, 해당 페이지가 갖고 있는 모든 정보를 동일하게 가지고 와야 함
 			case VM_UNINIT:
-				if(!vm_alloc_page_with_initializer(type, upage, writable, temp_page -> uninit.init, temp_page -> uninit.aux))
+				//Kernel panic in run: PANIC at ../../vm/vm.c:59 in vm_alloc_page_with_initializer(): assertion `VM_TYPE(type) != VM_UNINIT' failed. 해결
+				//vm_alloc_page_with_initializer의 첫 번째 인자로 그냥 type을 넘겨버리게 된다면
+				//ASSERT(VM_TYPE(type) != VM_UNINIT)에 걸리고 만다
+				//원본 page의 operations.type을 가져오는 page_get_type함수를 활용해야 한다
+				if(!vm_alloc_page_with_initializer(page_get_type(temp_page), upage, writable, temp_page -> uninit.init, temp_page -> uninit.aux))
 					return false;
 				break;
 
@@ -353,20 +357,35 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
 
-	// //hash 자료구조 순회용 자료형 hash_iterator 변수 선언
+	//hash 자료구조 순회용 자료형 hash_iterator 변수 선언
 	// struct hash_iterator i;
+	// struct hash_elem *to_delete;
 
 	// hash_first(&i, &spt -> hash_table);
 
 	// //spt에 들어가 있는 spt_elem을 모두 순회
 	// while(hash_next(&i))
 	// {
+	// 	to_delete = hash_cur(&i);
 	// 	struct page* temp_page = hash_entry(hash_cur(&i), struct page, spt_elem);
 	// 	// destroy(temp_page);
-	// 	vm_dealloc_page(temp_page);
+	// 	hash_delete(&spt -> hash_table, to_delete);
+	// 	destroy(temp_page);
+	// 	// vm_dealloc_page(temp_page);
+	// 	// hash_delete(&spt -> hash_table, to_delete);
 	// }
 
-	// // //spt 테이블 자체를 삭제
-	// // hash_destroy(spt, NULL);
+	//위 방식의 문제 : page 자체를 free할 방법이 없다
+	//destroy(temp_page) 이후에 free(page)를 하게 되면, hash_elem의 앞/뒤 원소와의 연결도 끊김
+	//정확히 하자면 hash_elem이 NULL로 초기화되니 앞/뒤 원소에 접근 자체가 불가능(쓰레기 값에 접근함)
+	//free(page)를 하지 않으면 문제없이 돌아가지만, 메모리 누수가 발생함
+	//while을 true로 걸고, free(page)를 하기 전에 미리 hash_next(&i)를 하면
+	//문제가 없을 것 같긴 하지만 hash_clear를 통한 방식이 더 안정적이다
+
+	//hash_clear 및 hash_destructor 정의를 통한 hash 멤버들 삭제
+	//hash_clear 내부에서 page를 free하기 전에 미리 반복 인자를 다음 hash_elem으로 옮기기 때문에
+	//메모리 참조 오류가 발생하지 않는다
+
+	hash_clear(&spt->hash_table, hash_destructor);  // 해시 테이블의 모든 요소 제거
 
 }
