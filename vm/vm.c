@@ -181,6 +181,8 @@ vm_get_frame (void) {
 	ASSERT (frame != NULL);
 	/* TODO: Fill this function. */
 	frame -> kva = palloc_get_page(PAL_USER | PAL_ZERO);
+	if (frame -> kva == NULL)
+		PANIC("TODO");
 	frame -> page = NULL;
 	ASSERT (frame->page == NULL);
 	return frame;
@@ -205,15 +207,25 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
 
-	//일단 주어진 주소를 토대로 spt에서 page를 찾기
-	//만약 spt에서 page를 찾지 못했다 : 진짜 fault
-	page = spt_find_page(spt, addr);
 
 	if (addr == NULL || is_kernel_vaddr(addr))
 		return false;
 
-	//spt에서 page 정보를 복원한 경우 : 물리 메모리와 연결
-	return vm_do_claim_page (page);
+	//현재 메모리에 page가 없는 상황이라면
+	if (not_present)
+	{
+		//일단 주어진 주소를 토대로 spt에서 page를 찾기
+		//만약 spt에서 page를 찾지 못했다 : 진짜 fault
+		page = spt_find_page(spt, addr);
+		//spt에 page가 없거나, 쓰기가 불가능한 페이지에 쓰기를 하려고 했다면
+		if (page == NULL || (write == true && page -> has_permission == false))
+			return false;
+		//spt에서 page 정보를 복원한 경우 : 물리 메모리와 연결
+		return vm_do_claim_page (page);
+	}
+	
+	//그 외 : return false
+	return false;
 }
 
 /* Free the page.
