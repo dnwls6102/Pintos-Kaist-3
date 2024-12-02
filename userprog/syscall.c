@@ -288,13 +288,13 @@ void close(int fd) {
 	if (f == NULL)
 		return;
 	//lock 걸기(다른 프로세스가 read하고 있는 파일을 삭제하면 안되니까)
-	lock_acquire(&filesys_lock);
+	// lock_acquire(&filesys_lock);
 	//현재 스레드의 fdt에서 할당 해제시키기
 	process_close_file(fd);
 	//파일 종료 : load에서 file_allow_write()를 먼저 구현해야 함. 안하면 오류남
 	file_close(f);
 	//lock 해제
-	lock_release(&filesys_lock);
+	// lock_release(&filesys_lock);
 
     return;
 }
