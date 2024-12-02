@@ -141,19 +141,36 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	//thread_exit ();
 }
 
+#ifndef VM
 //유저가 건네준 메모리 주소가 유효한지를 판별하는 함수 check_address
 void check_address(void * address)
 {
 	//현재 스레드에서 pml4를 받아오기 위해 현재 스레드 정보 받아오기
 	//pml4 : Page Map Level 4, x86-64 아키텍처에서 가상 주소를 물리 주소로 변환할때 사용함
 	struct thread * current_t = thread_current();
-
+	// printf("Address: %p\n",address);
 	//건네받은 주소가 커널 영역의 주소거나, NULL이거나, 현재 스레드의 페이지 맵 레벨 4 테이블에 주소가 없는 경우
 	if (is_kernel_vaddr(address) || address == NULL || pml4_get_page(current_t -> pml4, address) == NULL)
 	{	
 		//실행 종료
+		//-53 오류 발생 지점
 		exit(-1);
 	}
+}
+#endif
+
+struct page* check_address(void * address)
+{
+	struct thread * current_t = thread_current();
+	
+	// printf("Address: %p\n",address);
+
+	if (is_kernel_vaddr(address) || address == NULL)
+	{
+		exit(-1);
+	}
+
+	return spt_find_page(&current_t -> spt, address);
 }
 
 //void halt(void) NO_RETURN
