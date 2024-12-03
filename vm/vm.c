@@ -4,6 +4,7 @@
 #include "vm/vm.h"
 #include "vm/inspect.h"
 #include "threads/vaddr.h"
+#include "intrinsic.h"
 
 /* 보조 페이지 테이블 : 각각의 페이지에 대하여
    현재 페이지가 어느 곳에 저장되어 있는지(frame==물리 메모리에 있는지? disk==파일, 디스크에 있는지? swap==디스크의 스왑 영역에 있는지?)
@@ -192,6 +193,15 @@ vm_get_frame (void) {
 /* Growing the stack. */
 static void
 vm_stack_growth (void *addr UNUSED) {
+	//매개변수로 받은 addr을 포함한 page의 주소를 받아와서
+	//addr을 pg_round_down한 후 그 지점부터 메모리 공간을 PGSZIE만큼 추가로 할당시켜주기
+	void * temp_addr = pg_round_down(addr);
+
+	if (vm_alloc_page(VM_ANON | VM_MARKER_0, temp_addr, true) && vm_claim_page(temp_addr))
+	{
+		thread_current() -> stack_bottom = temp_addr;
+	}
+
 }
 
 /* Handle the fault on write_protected page */
@@ -223,9 +233,9 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 			//현재 스택 포인터가 가리키는 주소 가져오기
 			void * current_sp = rrsp();
 			//current_sp가 STACK의 가장 높은 한계 주소보다 작고, current_sp - PGSIZE보다는 크면
-			//stack 페이지 확장을 요청하는 주소가 USER_STACK보다는 작아야 함(크면 커널 영역 침범하니 false)
+			//stack 페이지 확장을 요청하는 주소가 USER_STACK의 bottom보다는 작아야 함(크면 애초에 page fault가 아님)
 			//현재 스택 포인터가 가리키는 주소 += PGSIZE 범위 내에 있어야 함(그 범위를 추가하면 1MB 이상의 공간을 할당해 줘야 함)
-			if (thread_current() -> stack_top >= addr && current_sp - PGSIZE <= addr)
+			if (thread_current() -> stack_bottom >= addr && current_sp - PGSIZE <= addr)
 			{
 				//vm_stack_growth 호출
 				vm_stack_growth(addr);
