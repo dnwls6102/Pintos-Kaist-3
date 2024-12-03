@@ -149,6 +149,10 @@ struct thread {
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
 	struct supplemental_page_table spt;
+
+	//Stack Growth 구현을 위한 스택 페이지 경계 주소 저장 변수
+	void * stack_bottom;
+	void * stack_top;
 #endif
 
 	/* Owned by thread.c. */

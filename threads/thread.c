@@ -226,6 +226,9 @@ thread_create (const char *name, int priority,
 	#ifdef VM
 	//spt 초기화
 	supplemental_page_table_init(&t -> spt);
+
+	//stack_top 초기화
+	t -> stack_top = USER_STACK;
 	#endif
 
 	/* Call the kernel_thread if it scheduled.
