@@ -30,6 +30,8 @@ int write (int fd, const void *buffer, unsigned length);
 void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
+void mmap(void *addr, size_t length, int writable, int fd, off_t offset);
+void munmap(void *addr);
 
 /* System call.
  *
@@ -137,6 +139,13 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			//unsigned tell(int fd)
 			f -> R.rax = tell(f -> R.rdi);
 			break;
+
+		case SYS_MMAP:
+			//void mmap(void *addr, size_t length, int writable, int fd, off_t offset)
+			mmap(f -> R.rdi, f -> R.rsi, f -> R.rdx, f -> R.r10, f -> R.r8);
+		case SYS_MUNMAP:
+			//void munmap(void *addr)
+			munmap(f -> R.rdi);
 		
 		default:
 			exit(-1);
@@ -436,4 +445,58 @@ unsigned tell (int fd)
 		return -1;
 
 	return file_tell(f);
+
+	
+}
+
+void mmap(void *addr, size_t length, int writable, int fd, off_t offset)
+{
+	//만약 매개변수로 전달받은 addr이 NULL이거나
+	//파일 길이가 0 이하이거나
+	//매핑을 요청한 파일들이 표준 입출력 관련 파일이라면
+	//바로 return
+	if (addr == NULL || length <= 0 || (fd >= 0 && fd <=2))
+	{
+		return;
+	}
+
+	//addr이나 offset이 page-allign되지 않은 경우도 mmap을 수행할 수 없다
+	if (addr != pg_round_down(addr) || offset != pg_round_down(offset))
+	{
+		return;
+	}
+
+	//addr이 속한 page는 spt에 등록이 되어있어야 한다
+	if (!spt_find_page(&thread_current() -> spt, addr))
+	{
+		return;
+	}
+
+	//addr은 유저 영역에 속해있어야 한다
+	//그리고 addr + length 역시 유저 영역에 속해있어야 한다
+	//addr은 유저 영역인데, addr + length가 커널 영역으로 넘어가 버리면 문제가 생긴다
+	if (!is_user_vaddr(addr) || !is_user_vaddr(addr + length))
+	{
+		return;
+	}
+
+	struct file * temp_file = process_get_file(fd);
+	
+	//현재 프로세스의 fdt에 등록되어 있는 파일이어야 한다
+	if (temp_file == NULL)
+		return;
+
+	//length로 넘겨받은 정보와 다르게, 실제 파일의 길이가 0이라면
+	//mmap을 진행하면 안된다
+	if (file_length(temp_file) == 0)
+		return;
+
+	return do_mmap(addr, length, writable, temp_file, offset);
+
+
+}
+
+void munmap(void *addr)
+{
+
 }

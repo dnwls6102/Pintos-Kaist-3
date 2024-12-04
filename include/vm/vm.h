@@ -59,6 +59,7 @@ struct page {
 	bool has_permission; //읽기,쓰기 권한이 있는지를 보여주는 bool 변수
 	enum page_status status; //현재 어느 공간에 저장되어 있는지를 나타내는 변수 status
 	bool is_stack; //스택 전용 페이지인지
+	int file_page_used; //파일 맵 페이지일 경우, 파일을 저장하는 데에 사용된 페이지 갯수
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
