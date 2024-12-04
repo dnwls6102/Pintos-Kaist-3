@@ -58,6 +58,7 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 		 * TODO: uninit_new를 호출하여 "uninit" 페이지 구조체를 초기화합니다.
 		 * TODO: uninit_new 호출 후 필요한 필드를 수정하세요. */
 		struct page *page = malloc(sizeof(struct page));
+		ASSERT(page != NULL);
 
 		uninit_new(page, upage, init, type, aux, uninit_initialize);
 
@@ -179,6 +180,14 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 	struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
 	struct page *page = NULL;
 	/* TODO: 예외를 검증하고 처리하세요. */
+	if (not_present) // 물리 메모리에 존재하지 않는 페이지인지 확인
+	{
+		if (!user || !write || addr == NULL) // 유저 영역이 아니거나, 읽기 전용 영역이거나, 주소가 유효하지 않으면 에러
+			return false;
+
+		if (spt_find_page(spt, addr) == NULL)
+			return false;
+	}
 
 	return vm_do_claim_page(page);
 }
