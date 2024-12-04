@@ -558,6 +558,8 @@ load(const char *file_name, struct intr_frame *if_)
 	bool success = false;
 	int i;
 
+	printf("load 오냐????\n");
+
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create();
 	if (t->pml4 == NULL)
@@ -916,8 +918,6 @@ setup_stack(struct intr_frame *if_)
 		success = vm_claim_page(stack_bottom);
 		if (success)
 			if_->rsp = USER_STACK;
-		else
-			palloc_free_page(stack_bottom);
 	}
 
 	return success;

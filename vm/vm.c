@@ -6,6 +6,7 @@
 #include "include/threads/thread.h"
 #include "vm/uninit.h"
 #include "include/lib/kernel/hash.h"
+#include "include/threads/vaddr.h"
 
 /* 각 하위 시스템의 초기화 코드를 호출하여 가상 메모리 서브시스템을 초기화합니다. */
 void vm_init(void)
@@ -65,34 +66,57 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 		uninit_new(page, upage, init, type, aux, uninit_initialize);
 
 		page->writable = writable;
-		page->user = true;
-		page->not_present = true;
+		// page->user = true;
+		// page->not_present = true;
 
 		/* TODO: 페이지를 spt에 삽입합니다. */
-		spt_insert_page(spt, page);
+		if (!spt_insert_page(spt, page))
+			return false;
 	}
+	return true;
 err:
 	return false;
 }
 
-/* spt에서 가상 주소를 찾아 페이지를 반환합니다.
- * 에러가 발생하면 NULL을 반환합니다. */
+// /* spt에서 가상 주소를 찾아 페이지를 반환합니다.
+//  * 에러가 발생하면 NULL을 반환합니다. */
+// struct page *
+// spt_find_page(struct supplemental_page_table *spt UNUSED, void *va UNUSED)
+// {
+// 	struct page *page = NULL;
+// 	/* TODO: 이 함수의 구현을 완료하세요. */
+// 	struct hash_iterator i;
+
+// 	hash_first(&i, &spt->page_table);
+// 	while (hash_next(&i)) // hash 테이블의 요소를 순회
+// 	{
+// 		page = hash_entry(hash_cur(&i), struct page, page_table_elem); // 요소에서 페이지를 꺼냄
+// 		if (page->va == va)											   // va에 해당하는 페이지가 있으면
+// 			return page;											   // 해당 페이지를 반환
+// 	}
+
+// 	return NULL;
+// }
+/* Find VA from spt and return page. On error, return NULL. */
+/* 매개변수로 넘겨받은 VA(가상 메모리 주소)와 대응되는 page를 (매개변수로 받은 supplemental page table에서) 찾아오는 함수*/
+/* Supplemental Page Table 구현을 위해 작성 */
 struct page *
 spt_find_page(struct supplemental_page_table *spt UNUSED, void *va UNUSED)
 {
-	struct page *page = NULL;
-	/* TODO: 이 함수의 구현을 완료하세요. */
-	struct hash_iterator i;
+	struct page *page = (struct page *)malloc(sizeof(struct page));
+	/* TODO: Fill this function. */
+	// pg_round_down으로 넘겨받은 va를 포함한 page의 시작 주소 찾기
+	page->va = pg_round_down(va);
+	// printf("va : %p, page -> va : %p \n", va, page -> va);
+	//(추후 재고)spt_elem이 초기화되지 않았는데 오류가 안일어날까?
+	// 오류가 일어나지 않는 이유 : 해시 테이블은 어차피 va값만 참고를 함
+	// 다른 멤버의 값은 초기화되지 않아도 문제가 없음
+	struct hash_elem *temp_elem = hash_find(&spt->page_table, &page->page_table_elem);
+	free(page);
+	if (temp_elem == NULL)
+		return NULL;
 
-	hash_first(&i, &spt->page_table);
-	while (hash_next(&i)) // hash 테이블의 요소를 순회
-	{
-		page = hash_entry(hash_cur(&i), struct page, page_table_elem); // 요소에서 페이지를 꺼냄
-		if (page->va == va)											   // va에 해당하는 페이지가 있으면
-			return page;											   // 해당 페이지를 반환
-	}
-
-	return NULL;
+	return hash_entry(temp_elem, struct page, page_table_elem);
 }
 
 /* 검증 후 PAGE를 spt에 삽입합니다. */
@@ -106,7 +130,8 @@ bool spt_insert_page(struct supplemental_page_table *spt UNUSED,
 		return succ;						  // false 반환
 
 	// 없으면 페이지 삽입
-	hash_insert(&spt->page_table, &page->page_table_elem);
+	if (hash_insert(&spt->page_table, &page->page_table_elem) == NULL)
+		succ = true;
 
 	return succ;
 }

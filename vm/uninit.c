@@ -66,7 +66,7 @@ bool uninit_initialize(struct page *page, void *kva)
 	int succ = false;
 
 	/* TODO: You may need to fix this function. */
-	if (uninit->type == VM_ANON)
+	if (uninit->type == VM_ANON || uninit->type == VM_ANON | VM_MARKER_0)
 		succ = anon_initializer(page, VM_ANON, kva);
 	else if (uninit->type == VM_FILE)
 		succ = file_backed_initializer(page, VM_FILE, kva);
