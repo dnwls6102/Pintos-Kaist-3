@@ -4,7 +4,6 @@
 #include "vm/vm.h"
 #include "vm/inspect.h"
 #include "threads/vaddr.h"
-#include "intrinsic.h"
 
 /* 보조 페이지 테이블 : 각각의 페이지에 대하여
    현재 페이지가 어느 곳에 저장되어 있는지(frame==물리 메모리에 있는지? disk==파일, 디스크에 있는지? swap==디스크의 스왑 영역에 있는지?)
@@ -230,15 +229,25 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		//spt에 page가 없다면
 		if (page == NULL)
 		{
-			//현재 스택 포인터가 가리키는 주소 가져오기
-			void * current_sp = rrsp();
-			//current_sp가 STACK의 가장 높은 한계 주소보다 작고, current_sp - PGSIZE보다는 크면
-			//stack 페이지 확장을 요청하는 주소가 USER_STACK의 bottom보다는 작아야 함(크면 애초에 page fault가 아님)
-			//현재 스택 포인터가 가리키는 주소 += PGSIZE 범위 내에 있어야 함(그 범위를 추가하면 1MB 이상의 공간을 할당해 줘야 함)
-			if (thread_current() -> stack_bottom >= addr && current_sp - PGSIZE <= addr)
+			//유저 모드에서 페이지 폴트가 발생했는지, 커널 모드에서 페이지 폴트가 발생했는지 구분해야 함
+			//유저 모드에서 발생했을 경우, 매개변수로 넘겨받은 rsp를 참조하면 된다
+			//커널 모드에서 발생한 경우, 현재 커널 모드를 돌리는 스레드의 rsp를 참조해야 한다
+			//커널 모드가 돌아가는 중에 페이지 폴트가 발생하고, 인터럽트 프레임의 rsp를 참고하면
+			//그거는 커널 모드 전용 스택을 참고하는 것이 아닌, 커널 모드에 들어가기 직전에 돌아가던 스레드에 저장된 rsp를 참조하는 것이다
+
+			void * stack_pointer = user ? f -> rsp : thread_current() -> stack_pointer;
+
+			// printf("stack_pointer : %p, f -> rsp = %p\n", thread_current() -> stack_pointer, f -> rsp);
+
+			// if (thread_current() -> stack_bottom >= addr && thread_current() -> stack_bottom - PGSIZE <= addr)
+
+			//x86에서는 rsp에서 8바이트 이내인 곳에서 page fault를 발생시킨다
+			if (stack_pointer - 8 <= addr && addr >= STACK_LIMIT && addr <= USER_STACK)
 			{
+				// printf("stack_pointer : %p, addr = %p\n", thread_current() -> stack_pointer, addr);
 				//vm_stack_growth 호출
 				vm_stack_growth(addr);
+				return true;
 			}
 			
 			return false;
