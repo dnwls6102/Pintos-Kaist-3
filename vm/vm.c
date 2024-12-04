@@ -5,6 +5,7 @@
 #include "vm/inspect.h"
 #include "include/threads/thread.h"
 #include "vm/uninit.h"
+#include "include/lib/kernel/hash.h"
 
 /* 각 하위 시스템의 초기화 코드를 호출하여 가상 메모리 서브시스템을 초기화합니다. */
 void vm_init(void)
@@ -48,6 +49,7 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 {
 
 	ASSERT(VM_TYPE(type) != VM_UNINIT)
+	printf("📌 vm_alloc_page_with_initializer: upage = %p\n", upage);
 
 	struct supplemental_page_table *spt = &thread_current()->spt;
 
@@ -99,6 +101,7 @@ bool spt_insert_page(struct supplemental_page_table *spt UNUSED,
 {
 	int succ = false;
 	/* TODO: 이 함수의 구현을 완료하세요. */
+	printf("📌 spt_insert_page: upage = %p\n", page->va);
 	if (spt_find_page(spt, page->va) != NULL) // 보조 페이지 테이블에 해당 페이지의 va가 이미 존재하면
 		return succ;						  // false 반환
 
@@ -238,7 +241,7 @@ vm_do_claim_page(struct page *page)
 void supplemental_page_table_init(struct supplemental_page_table *spt UNUSED)
 {
 	struct hash *h = &spt->page_table;
-	return hash_init(h, h->hash, h->less, h->aux);
+	hash_init(h, hash_func, less_func, h->aux);
 }
 
 /* 보조 페이지 테이블을 src에서 dst로 복사합니다. */

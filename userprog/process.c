@@ -869,6 +869,8 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 
 	while (read_bytes > 0 || zero_bytes > 0)
 	{
+		// 📌 load_segment: upage = 0x400000부터 로드
+		printf("📌 load_segment: upage = %p\n", upage);
 		/* Do calculate how to fill this page.
 		 * We will read PAGE_READ_BYTES bytes from FILE
 		 * and zero the final PAGE_ZERO_BYTES bytes. */
