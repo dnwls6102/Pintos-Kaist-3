@@ -10,7 +10,7 @@
 #include "vm/vm.h"
 #include "vm/uninit.h"
 
-// static bool uninit_initialize(struct page *page, void *kva);
+static bool uninit_initialize(struct page *page, void *kva);
 static void uninit_destroy(struct page *page);
 
 /* DO NOT MODIFY this struct */
@@ -41,41 +41,41 @@ void uninit_new(struct page *page, void *va, vm_initializer *init,
 }
 
 /* Initalize the page on first fault */
-// static bool
-// uninit_initialize(struct page *page, void *kva)
-// {
-// 	struct uninit_page *uninit = &page->uninit;
-
-// 	/* Fetch first, page_initialize may overwrite the values */
-// 	vm_initializer *init = uninit->init;
-// 	void *aux = uninit->aux;
-
-// 	/* TODO: You may need to fix this function. */
-// 	return uninit->page_initializer(page, uninit->type, kva) && // anon_initializer() || filebacked_initializer()
-// 		   (init ? init(page, aux) : true);						// lazy_load_segment()
-// }
-
-/* uninit_initialize 고쳐보깅 */
-bool uninit_initialize(struct page *page, void *kva)
+static bool
+uninit_initialize(struct page *page, void *kva)
 {
 	struct uninit_page *uninit = &page->uninit;
 
 	/* Fetch first, page_initialize may overwrite the values */
 	vm_initializer *init = uninit->init;
 	void *aux = uninit->aux;
-	int succ = false;
 
 	/* TODO: You may need to fix this function. */
-	if (uninit->type == VM_ANON || uninit->type == VM_ANON | VM_MARKER_0)
-		succ = anon_initializer(page, VM_ANON, kva);
-	else if (uninit->type == VM_FILE)
-		succ = file_backed_initializer(page, VM_FILE, kva);
-	else
-		return false;
-
-	if (succ)
-		return (init ? init(page, aux) : true); // lazy_load_segment()
+	return uninit->page_initializer(page, uninit->type, kva) && // anon_initializer() || filebacked_initializer()
+		   (init ? init(page, aux) : true);						// lazy_load_segment()
 }
+
+/* uninit_initialize 고쳐보깅 */
+// bool uninit_initialize(struct page *page, void *kva)
+// {
+// 	struct uninit_page *uninit = &page->uninit;
+
+// 	/* Fetch first, page_initialize may overwrite the values */
+// 	vm_initializer *init = uninit->init;
+// 	void *aux = uninit->aux;
+// 	int succ = false;
+
+// 	/* TODO: You may need to fix this function. */
+// 	if (uninit->type == VM_ANON || uninit->type == VM_ANON | VM_MARKER_0)
+// 		succ = anon_initializer(page, VM_ANON, kva);
+// 	else if (uninit->type == VM_FILE)
+// 		succ = file_backed_initializer(page, VM_FILE, kva);
+// 	else
+// 		return false;
+
+// 	if (succ)
+// 		return (init ? init(page, aux) : true); // lazy_load_segment()
+// }
 
 /* Free the resources hold by uninit_page. Although most of pages are transmuted
  * to other page objects, it is possible to have uninit pages when the process

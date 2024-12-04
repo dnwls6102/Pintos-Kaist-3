@@ -63,11 +63,18 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 		struct page *page = malloc(sizeof(struct page));
 		ASSERT(page != NULL);
 
-		uninit_new(page, upage, init, type, aux, uninit_initialize);
-
-		page->writable = writable;
 		// page->user = true;
 		// page->not_present = true;
+		if (VM_TYPE(type) == VM_ANON) // if (type == VM_ANON)로 하면 setup_stack일 때의 타입 인식 못 해서 false 리턴함
+			uninit_new(page, upage, init, type, aux, anon_initializer);
+		else if (VM_TYPE(type) == VM_FILE)
+			uninit_new(page, upage, init, type, aux, file_backed_initializer);
+		else
+		{
+			free(page);
+			return false;
+		}
+		page->writable = writable;
 
 		/* TODO: 페이지를 spt에 삽입합니다. */
 		if (!spt_insert_page(spt, page))
@@ -210,10 +217,15 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 	/* TODO: 예외를 검증하고 처리하세요. */
 	if (not_present) // 물리 메모리에 존재하지 않는 페이지인지 확인
 	{
-		if (!user || !write || addr == NULL) // 유저 영역이 아니거나, 읽기 전용 영역이거나, 주소가 유효하지 않으면 에러
+		if (!user)
+			return false;
+		if (addr == NULL) // 유저 영역이 아니거나, 읽기 전용 영역이거나, 주소가 유효하지 않으면 에러
 			return false;
 
-		if (spt_find_page(spt, addr) == NULL)
+		if ((page = spt_find_page(spt, addr)) == NULL)
+			return false;
+
+		if (page->writable == false && write == true)
 			return false;
 	}
 
