@@ -186,6 +186,17 @@ struct page* check_address(void * address)
 
 	return spt_find_page(&current_t -> spt, address);
 }
+
+/** Project 3: Memory Mapped Files - 버퍼 유효성 검사 */
+void check_valid_buffer(void *buffer, size_t size, bool writable) {
+    for (size_t i = 0; i < size; i++) {
+        /* buffer가 spt에 존재하는지 검사 */
+        struct page *page = check_address(buffer + i);
+
+        if (!page || (writable && !(page->has_permission)))
+            exit(-1);
+    }
+}
 #endif
 
 //void halt(void) NO_RETURN
@@ -356,6 +367,9 @@ int filesize(int fd)
 //fd에서 얼마만큼의 데이터를 읽었는지를(크기를) 반환
 int read(int fd, void *buffer, unsigned size)
 {
+	#ifdef VM
+	check_valid_buffer(buffer, size, true);
+	#endif
 	//buffer가 유효한지 검사
 	check_address(buffer);
 	int result;
@@ -403,6 +417,9 @@ int read(int fd, void *buffer, unsigned size)
 //fd 파일에 buffer에 있는 내용을 length만큼 작성
 int write(int fd, const void *buffer, unsigned length)
 {
+	#ifdef VM
+	check_valid_buffer(buffer, length, false);
+	#endif
 	//buffer가 유효한지 확인
 	check_address(buffer);
 	int result = -1;
