@@ -50,7 +50,7 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 {
 
 	ASSERT(VM_TYPE(type) != VM_UNINIT)
-	printf("📌 vm_alloc_page_with_initializer: upage = %p\n", upage);
+	// printf("📌 vm_alloc_page_with_initializer: upage = %p\n", upage);
 
 	struct supplemental_page_table *spt = &thread_current()->spt;
 
@@ -132,7 +132,7 @@ bool spt_insert_page(struct supplemental_page_table *spt UNUSED,
 {
 	int succ = false;
 	/* TODO: 이 함수의 구현을 완료하세요. */
-	printf("📌 spt_insert_page: upage = %p\n", page->va);
+	// printf("📌 spt_insert_page: upage = %p\n", page->va);
 	if (spt_find_page(spt, page->va) != NULL) // 보조 페이지 테이블에 해당 페이지의 va가 이미 존재하면
 		return succ;						  // false 반환
 
