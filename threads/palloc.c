@@ -272,9 +272,9 @@ palloc_init(void)
 
 	resolve_area_info(&base_mem, &ext_mem);
 	printf("Pintos booting with: \n");
-	printf("\tbase_mem: 0x%llx ~ 0x%llx (사용 가능: %'llu kB)\n",
+	printf("\tbase_mem: 0x%llx ~ 0x%llx (Usable: %'llu kB)\n",
 		   base_mem.start, base_mem.end, base_mem.size / 1024);
-	printf("\text_mem: 0x%llx ~ 0x%llx (사용 가능: %'llu kB)\n",
+	printf("\text_mem: 0x%llx ~ 0x%llx (Usable: %'llu kB)\n",
 		   ext_mem.start, ext_mem.end, ext_mem.size / 1024);
 	populate_pools(&base_mem, &ext_mem);
 	return ext_mem.end;

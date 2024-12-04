@@ -50,11 +50,11 @@ struct page
 
 	/* 구현 영역 */
 	/* Project 03 - Memory Management */
-	int permission;			// 읽기/쓰기 권한 (PTE_W)
-	struct file *f;			// file, offset
-	uint64_t data_size;		// page data 크기
-	struct disk *swap_disk; // 스왑 영역의 위치
-	struct pool *pool;		// memory flag
+	// not_present: 해당 페이지가 물리 메모리에 로드되지 않았거나, 페이지 테이블에서 해당 페이지에 대한 엔트리가 없음
+	bool not_present;	/* True: not-present page, false: writing r/o page.*/
+	bool writable;		/* True: access was write, false: access was read. */
+	bool user;			/* True: access by user, false: access by kernel. */
+	uint64_t data_size; // page data 크기
 
 	struct hash_elem page_table_elem; // hash 테이블에 포함되기 위함
 

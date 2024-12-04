@@ -27,6 +27,7 @@ static bool load(const char *file_name, struct intr_frame *if_);
 static void initd(void *f_name);
 static void __do_fork(void *);
 struct thread *get_child_process(int tid);
+static bool install_page(void *upage, void *kpage, bool writable);
 
 /* General process initializer for initd and other process. */
 static void
@@ -114,6 +115,16 @@ tid_t process_fork(const char *name, struct intr_frame *if_ UNUSED)
 	sema_down(&child->fork_sema);
 
 	return tid;
+}
+
+static bool
+install_page(void *upage, void *kpage, bool writable)
+{
+	struct thread *t = thread_current();
+
+	/* Verify that there's not already a page at that virtual
+	 * address, then map our page there. */
+	return (pml4_get_page(t->pml4, upage) == NULL && pml4_set_page(t->pml4, upage, kpage, writable));
 }
 
 #ifndef VM
@@ -655,48 +666,45 @@ done:
 	return success;
 }
 
-/* Checks whether PHDR describes a valid, loadable segment in
- * FILE and returns true if so, false otherwise. */
+/* PHDR가 FILE에서 유효하고 로드 가능한 세그먼트를 설명하는지 확인하고,
+ * 그렇다면 true를 반환하며, 그렇지 않으면 false를 반환합니다. */
 static bool
 validate_segment(const struct Phdr *phdr, struct file *file)
 {
-	/* p_offset and p_vaddr must have the same page offset. */
+	/* p_offset과 p_vaddr은 동일한 페이지 오프셋을 가져야 합니다. */
 	if ((phdr->p_offset & PGMASK) != (phdr->p_vaddr & PGMASK))
 		return false;
 
-	/* p_offset must point within FILE. */
+	/* p_offset은 FILE 내를 가리켜야 합니다. */
 	if (phdr->p_offset > (uint64_t)file_length(file))
 		return false;
 
-	/* p_memsz must be at least as big as p_filesz. */
+	/* p_memsz는 p_filesz보다 크거나 같아야 합니다. */
 	if (phdr->p_memsz < phdr->p_filesz)
 		return false;
 
-	/* The segment must not be empty. */
+	/* 세그먼트는 비어 있을 수 없습니다. */
 	if (phdr->p_memsz == 0)
 		return false;
 
-	/* The virtual memory region must both start and end within the
-	   user address space range. */
+	/* 가상 메모리 영역은 사용자 주소 공간 범위 내에서 시작하고 끝나야 합니다. */
 	if (!is_user_vaddr((void *)phdr->p_vaddr))
 		return false;
 	if (!is_user_vaddr((void *)(phdr->p_vaddr + phdr->p_memsz)))
 		return false;
 
-	/* The region cannot "wrap around" across the kernel virtual
-	   address space. */
+	/* 해당 영역은 커널 가상 주소 공간을 넘어가거나 "랩어라운드"될 수 없습니다. */
 	if (phdr->p_vaddr + phdr->p_memsz < phdr->p_vaddr)
 		return false;
 
-	/* Disallow mapping page 0.
-	   Not only is it a bad idea to map page 0, but if we allowed
-	   it then user code that passed a null pointer to system calls
-	   could quite likely panic the kernel by way of null pointer
-	   assertions in memcpy(), etc. */
+	/* 페이지 0 매핑은 허용되지 않습니다.
+	   페이지 0을 매핑하는 것은 나쁜 아이디어일 뿐만 아니라, 이를 허용하면
+	   null 포인터를 시스템 호출에 전달한 사용자 코드가 memcpy() 등의 null 포인터
+	   단언문을 통해 커널을 패닉 상태로 만들 가능성이 높습니다. */
 	if (phdr->p_vaddr < PGSIZE)
 		return false;
 
-	/* It's okay. */
+	/* 유효합니다. */
 	return true;
 }
 
@@ -706,7 +714,7 @@ validate_segment(const struct Phdr *phdr, struct file *file)
  * outside of #ifndef macro. */
 
 /* load() helpers. */
-static bool install_page(void *upage, void *kpage, bool writable);
+// static bool install_page(void *upage, void *kpage, bool writable);
 
 /* Loads a segment starting at offset OFS in FILE at address
  * UPAGE.  In total, READ_BYTES + ZERO_BYTES bytes of virtual
@@ -750,10 +758,10 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 			palloc_free_page(kpage);
 			return false;
 		}
-		memset(kpage + page_read_bytes, 0, page_zero_bytes);
+		memset(kpage + page_read_bytes, 0, page_zero_bytes); // 페이지의 시작부터 page_read_bytes만큼의 공간을 zero_byte 크기 만큼 0으로 초기화
 
 		/* Add the page to the process's address space. */
-		if (!install_page(upage, kpage, writable))
+		if (!install_page(upage, kpage, writable)) // 페이지 테이블에 페이지를 로드
 		{
 			printf("fail\n");
 			palloc_free_page(kpage);
@@ -796,26 +804,45 @@ setup_stack(struct intr_frame *if_)
  * with palloc_get_page().
  * Returns true on success, false if UPAGE is already mapped or
  * if memory allocation fails. */
-static bool
-install_page(void *upage, void *kpage, bool writable)
-{
-	struct thread *t = thread_current();
 
-	/* Verify that there's not already a page at that virtual
-	 * address, then map our page there. */
-	return (pml4_get_page(t->pml4, upage) == NULL && pml4_set_page(t->pml4, upage, kpage, writable));
-}
 #else
 /* From here, codes will be used after project 3.
  * If you want to implement the function for only project 2, implement it on the
  * upper block. */
 
+struct lazy_load_aux
+{
+	struct file *file;
+	off_t ofs;
+	size_t page_read_bytes;
+	size_t page_zero_bytes;
+};
+
 static bool
 lazy_load_segment(struct page *page, void *aux)
 {
+	struct lazy_load_aux *_aux = aux;
+
 	/* TODO: Load the segment from the file */
+	file_seek(_aux->file, _aux->ofs);
+	/* Load this page. */
+	if (file_read(_aux->file, page, _aux->page_read_bytes) != (int)_aux->page_read_bytes)
+	{
+		palloc_free_page(page->frame->kva);
+		return false;
+	}
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
+	memset(page->va + _aux->page_read_bytes, 0, _aux->page_zero_bytes);
+
+	if (!install_page(page->va, page->frame->kva, page->writable)) // 페이지 테이블에 페이지를 로드
+	{
+		printf("fail\n");
+		palloc_free_page(page->frame->kva);
+		return false;
+	}
+
+	return true;
 }
 
 /* Loads a segment starting at offset OFS in FILE at address
@@ -845,18 +872,23 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 		/* Do calculate how to fill this page.
 		 * We will read PAGE_READ_BYTES bytes from FILE
 		 * and zero the final PAGE_ZERO_BYTES bytes. */
-		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-		size_t page_zero_bytes = PGSIZE - page_read_bytes;
+		// size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+		// size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
-		void *aux = NULL;
+		struct lazy_load_aux aux;
+		aux.file = file;
+		aux.ofs = ofs;
+		aux.page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+		aux.page_zero_bytes = PGSIZE - aux.page_read_bytes;
+
 		if (!vm_alloc_page_with_initializer(VM_ANON, upage,
-											writable, lazy_load_segment, aux))
+											writable, lazy_load_segment, &aux))
 			return false;
 
 		/* Advance. */
-		read_bytes -= page_read_bytes;
-		zero_bytes -= page_zero_bytes;
+		read_bytes -= aux.page_read_bytes;
+		zero_bytes -= aux.page_zero_bytes;
 		upage += PGSIZE;
 	}
 	return true;

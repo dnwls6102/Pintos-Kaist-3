@@ -28,11 +28,10 @@
 #define PTX(la) ((((uint64_t)(la)) >> PTXSHIFT) & 0x1FF)
 #define PTE_ADDR(pte) ((uint64_t)(pte) & ~0xFFF)
 
-/* The important flags are listed below.
-   When a PDE or PTE is not "present", the other flags are
-   ignored.
-   A PDE or PTE that is initialized to 0 will be interpreted as
-   "not present", which is just fine. */
+/* 중요한 플래그는 아래에 나열되어 있습니다.
+   PDE(페이지 디렉터리 엔트리) 또는 PTE(페이지 테이블 엔트리)가 “존재하지 않음” 상태일 때는
+   다른 플래그는 무시됩니다.
+   PDE 또는 PTE가 0으로 초기화되면 이는 “존재하지 않음”으로 해석되며, 이는 전혀 문제가 없습니다. */
 #define PTE_FLAGS 0x00000000000000fffUL     /* Flag bits. */
 #define PTE_ADDR_MASK 0xffffffffffffff000UL /* Address bits. */
 #define PTE_AVL 0x00000e00                  /* Bits available for OS use. */

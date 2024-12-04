@@ -4,6 +4,7 @@
 #include "vm/vm.h"
 #include "vm/inspect.h"
 #include "include/threads/thread.h"
+#include "vm/uninit.h"
 
 /* 각 하위 시스템의 초기화 코드를 호출하여 가상 메모리 서브시스템을 초기화합니다. */
 void vm_init(void)
@@ -50,14 +51,22 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 
 	struct supplemental_page_table *spt = &thread_current()->spt;
 
-	/* upage가 이미 점유되어 있는지 확인합니다. */
+	/* upage가 이미 점유(occupy)되어 있는지 확인합니다. */
 	if (spt_find_page(spt, upage) == NULL)
 	{
 		/* TODO: 페이지를 생성하고 VM 유형에 따라 초기화자를 선택한 다음
 		 * TODO: uninit_new를 호출하여 "uninit" 페이지 구조체를 초기화합니다.
 		 * TODO: uninit_new 호출 후 필요한 필드를 수정하세요. */
+		struct page *page = malloc(sizeof(struct page));
+
+		uninit_new(page, upage, init, type, aux, uninit_initialize);
+
+		page->writable = writable;
+		page->user = true;
+		page->not_present = true;
 
 		/* TODO: 페이지를 spt에 삽입합니다. */
+		spt_insert_page(spt, page);
 	}
 err:
 	return false;
@@ -129,15 +138,26 @@ vm_evict_frame(void)
 /* palloc()을 사용하여 프레임을 할당합니다.
  * 사용 가능한 페이지가 없을 경우 페이지를 교체하여 메모리를 확보한 후
  * 교체된 프레임을 반환합니다. 이 함수는 항상 유효한 주소를 반환합니다. */
+
+// vm_get_frame을 구현한 후, 모든 유저 영역 페이지(PALLOC_USER)는 이 함수를 통해 할당되어야 함
 static struct frame *
 vm_get_frame(void)
 {
-	struct frame *frame = NULL;
-	/* TODO: 프레임 할당 로직을 구현하세요. */
-
+	struct frame *frame = malloc(sizeof(struct frame));
 	ASSERT(frame != NULL);
-	ASSERT(frame->page == NULL);
-	return frame;
+
+	/* TODO: 프레임 할당 로직을 구현하세요. */
+	// palloc_get_page를 호출하여 사용자 풀(user pool)에서 새 물리 페이지를 가져옴
+	if ((frame->kva = palloc_get_page(PAL_USER)) != NULL)
+	{
+		frame->page = NULL;
+		ASSERT(frame->page == NULL);
+		return frame;
+	}
+
+	else
+		// 페이지 할당 실패 시 나중에 스왑아웃 처리 필요 - 지금은 PANIC(”todo”) 로 표시
+		PANIC("todo");
 }
 
 /* 스택을 확장하여 지정된 주소에 새 페이지를 할당합니다. */
@@ -171,11 +191,15 @@ void vm_dealloc_page(struct page *page)
 	free(page);
 }
 
-/* 지정된 가상 주소(VA)에 해당하는 페이지를 확보합니다. */
+/* spt에서 지정된 가상 주소(VA)에 해당하는 페이지를 가져옵니다. */
 bool vm_claim_page(void *va UNUSED)
 {
 	struct page *page = NULL;
 	/* TODO: 페이지 확보 로직을 구현하세요. */
+	// SPT에 va가 등록이 되어있는지 확인
+	// - va가 존재하지 않는다면 애초에 가상 메모리에 페이지가 할당 조차 안 된 것이기 때문에 물리 메모리에 연결할 수 없음
+	if ((page = spt_find_page(&thread_current()->spt, va)) == NULL)
+		return false;
 
 	return vm_do_claim_page(page);
 }
@@ -192,6 +216,11 @@ vm_do_claim_page(struct page *page)
 
 	/* TODO: 페이지 테이블 항목을 삽입하여 페이지의 가상 주소(VA)를
 	 * TODO: 프레임의 물리적 주소(PA)에 매핑하세요. */
+	struct thread *cur = thread_current();
+	spt_insert_page(&cur->spt, page);
+
+	// 페이지 테이블에 가상 주소와 물리 주소간의 매핑을 추가
+	pml4_set_page(cur->pml4, page->va, frame->kva, page->writable);
 
 	return swap_in(page, frame->kva);
 }
@@ -216,5 +245,5 @@ void supplemental_page_table_kill(struct supplemental_page_table *spt UNUSED)
 	struct hash *h = &spt->page_table;
 	/* TODO: 스레드가 사용하는 보조 페이지 테이블의 모든 항목을 제거하고
 	 * TODO: 수정된 내용을 스토리지에 기록하세요. */
-	hash_clear();
+	// hash_clear();
 }
