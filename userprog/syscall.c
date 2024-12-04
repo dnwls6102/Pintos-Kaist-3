@@ -63,6 +63,10 @@ syscall_init (void) {
 /* The main system call interface */
 void
 syscall_handler (struct intr_frame *f UNUSED) {
+	#ifdef VM
+	//stack growth를 위한 rsp 스택 포인터 값 저장
+	thread_current() -> stack_pointer = f -> rsp;
+	#endif
 	// TODO: Your implementation goes here.
 	//printf ("system call!\n");
 	//Linux에서 시스템 콜의 번호는 rax에 저장됨
