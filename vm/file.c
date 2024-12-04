@@ -2,6 +2,7 @@
 
 #include "vm/vm.h"
 #include "threads/vaddr.h"
+#include "threads/mmu.h"
 
 static bool file_backed_swap_in (struct page *page, void *kva);
 static bool file_backed_swap_out (struct page *page);
@@ -55,6 +56,16 @@ file_backed_swap_out (struct page *page) {
 static void
 file_backed_destroy (struct page *page) {
 	struct file_page *file_page UNUSED = &page->file;
+
+	//파일이 수정된 경우 이를 디스크에도 반영해 줘야 함
+	if(pml4_is_dirty(thread_current() -> pml4, page -> va))
+	{
+		file_write_at(file_page -> file, page -> va, file_page -> page_read_bytes, file_page -> ofs);
+		pml4_set_dirty(thread_current() -> pml4, page -> va, 0);
+	}
+
+	//page의 매핑 정보 삭제
+	pml4_clear_page(thread_current() -> pml4, page -> va);
 }
 
 static bool
@@ -172,4 +183,14 @@ do_mmap (void *addr, size_t length, int writable,
 /* Do the munmap */
 void
 do_munmap (void *addr) {
+	struct supplemental_page_table *spt = &thread_current() -> spt;
+	struct page *p = spt_find_page(spt, addr);
+	int count = p -> file_page_used;
+	for(int i = 0; i < count; i++)
+	{
+		if(p)
+			destroy(p);
+		addr += PGSIZE;
+		p = spt_find_page(spt, addr);
+	}
 }

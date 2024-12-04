@@ -386,7 +386,7 @@ supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 				dst_page -> frame -> page = dst_page;
 
 				//page와 frame간의 매핑 정보 pml4에 등록
-				if(!pml4_set_page(thread_current() -> pml4, dst_page -> va, dst_page -> frame -> kva, dst_page -> has_permission))
+				if(!pml4_set_page(thread_current() -> pml4, dst_page -> va, temp_page -> frame -> kva, temp_page -> has_permission))
 					return false;
 
 				break;
